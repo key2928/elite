@@ -147,6 +147,9 @@ try {
         .badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .badge-admin { background: rgba(214, 43, 197, 0.2); color: #d62bc5; border: 1px solid #d62bc5; }
         .badge-treinador { background: rgba(255, 140, 0, 0.2); color: #FF8C00; border: 1px solid #FF8C00; }
+        .badge-professor { background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db; }
+        .badge-instrutor { background: rgba(26, 188, 156, 0.2); color: #1abc9c; border: 1px solid #1abc9c; }
+        .badge-aluno { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
         .badge-aluna { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
         
         .btn-excluir { background: rgba(255, 68, 68, 0.1); color: #ff4444; border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: 0.3s; }
@@ -248,32 +251,35 @@ try {
             <form method="POST">
                 <input type="hidden" name="acao" value="add_usuario">
                 <input type="text" name="nome" placeholder="Nome Completo" required>
-                <input type="email" name="email" placeholder="E-mail de Login" required>
-                <input type="text" name="telefone" placeholder="WhatsApp (Essencial para instrutoras)">
+                <input type="email" name="email" placeholder="E-mail / Login de Acesso" required>
+                <input type="text" name="telefone" placeholder="WhatsApp (Recomendado)">
                 <input type="password" name="senha" placeholder="Senha de Acesso" required>
                 <select name="tipo" required>
-                    <option value="aluna">Aluna do Tatame</option>
-                    <option value="treinador">Treinadora / Instrutora</option>
-                    <option value="admin">Administradora</option>
+                    <option value="" disabled selected>Selecione o Nível de Acesso</option>
+                    <option value="aluno">Aluno(a)</option>
+                    <option value="professor">Professor(a)</option>
+                    <option value="treinador">Treinador(a)</option>
+                    <option value="instrutor">Instrutor(a)</option>
+                    <option value="admin">Administrador(a) — Master</option>
                 </select>
                 <button type="submit" class="btn-submit">Cadastrar no Sistema</button>
             </form>
         </div>
 
         <div class="card">
-            <h3 class="card-titulo"><i class="fas fa-users"></i> Registos do Sistema</h3>
+            <h3 class="card-titulo"><i class="fas fa-users"></i> Usuários do Sistema</h3>
             <div style="max-height: 500px; overflow-y: auto;">
                 <?php foreach($usuarios as $u): ?>
                     <div class="item-lista">
                         <div class="item-topo">
                             <span class="item-nome"><?= htmlspecialchars($u['nome']) ?></span>
-                            <span class="badge badge-<?= $u['tipo'] ?>"><?= $u['tipo'] ?></span>
+                            <span class="badge badge-<?= htmlspecialchars($u['tipo']) ?>"><?= htmlspecialchars($u['tipo']) ?></span>
                         </div>
                         <div style="font-size: 12px; color: var(--texto-cinza); margin-bottom: 5px;">
                             <i class="fas fa-envelope"></i> <?= htmlspecialchars($u['email']) ?> | <i class="fab fa-whatsapp"></i> <?= htmlspecialchars($u['telefone'] ?? 'N/A') ?>
                         </div>
                         
-                        <?php if($u['tipo'] == 'aluna' && !empty($u['restricoes_medicas'])): ?>
+                        <?php if(in_array($u['tipo'], ['aluno','aluna']) && !empty($u['restricoes_medicas'])): ?>
                             <div class="alerta-saude">
                                 <strong><i class="fas fa-notes-medical"></i> Ficha Médica:</strong><br>
                                 <?= nl2br(htmlspecialchars($u['restricoes_medicas'])) ?>
@@ -281,14 +287,15 @@ try {
                         <?php endif; ?>
 
                         <div style="margin-top: 10px; text-align: right;">
-                            <form method="POST" onsubmit="return confirm('Tem certeza que deseja EXCLUIR este utilizador?');">
+                            <form method="POST" onsubmit="return confirm('Tem certeza que deseja EXCLUIR este usuário?');">
                                 <input type="hidden" name="acao" value="excluir_usuario">
-                                <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                                 <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i> Excluir</button>
                             </form>
                         </div>
                     </div>
                 <?php endforeach; ?>
+                <?php if(empty($usuarios)): ?><p style="color: var(--texto-cinza); font-size: 13px; text-align: center;">Nenhum usuário cadastrado.</p><?php endif; ?>
             </div>
         </div>
     </div>

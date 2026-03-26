@@ -8,8 +8,8 @@ $erro = '';
 // Função inteligente para mandar cada um pro seu painel
 function redirecionarPainel($tipo) {
     if ($tipo === 'admin') { header("Location: admin.php"); exit; }
-    elseif ($tipo === 'treinador') { header("Location: treinador.php"); exit; }
-    else { header("Location: index.php"); exit; } // A aluna cai no index!
+    elseif (in_array($tipo, ['treinador', 'professor', 'instrutor'])) { header("Location: treinador.php"); exit; }
+    else { header("Location: index.php"); exit; } // Aluno(a) cai no index!
 }
 
 // 1. Se JÁ ESTÁ logado na sessão atual
