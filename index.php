@@ -8,7 +8,7 @@ require 'config.php';
 
 if (!isset($_SESSION['usuario_tipo'])) { header("Location: login.php"); exit; }
 if ($_SESSION['usuario_tipo'] === 'admin') { header("Location: admin.php"); exit; }
-if ($_SESSION['usuario_tipo'] === 'treinador') { header("Location: treinador.php"); exit; }
+if (in_array($_SESSION['usuario_tipo'], ['treinador', 'professor', 'instrutor'])) { header("Location: treinador.php"); exit; }
 
 $msg_ficha = '';
 

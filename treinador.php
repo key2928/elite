@@ -6,8 +6,8 @@ error_reporting(E_ALL);
 require 'config.php';
 session_start();
 
-// Verificação de Acesso: Apenas Treinadoras
-if (!isset($_SESSION['usuario_tipo']) || $_SESSION['usuario_tipo'] !== 'treinador') { 
+// Verificação de Acesso: Treinador, Professor ou Instrutor
+if (!isset($_SESSION['usuario_tipo']) || !in_array($_SESSION['usuario_tipo'], ['treinador', 'professor', 'instrutor'])) { 
     header("Location: login.php"); 
     exit; 
 }
@@ -52,12 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $msg_sucesso = "Pagamento recebido com sucesso! O plano da aluna foi atualizado.";
     }
 
-    // 5. Cadastrar Nova Aluna
+    // 5. Cadastrar Novo Aluno(a)
     if ($_POST['acao'] == 'nova_aluna') {
         $senha_hash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
         try {
-            $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo) VALUES (?, ?, ?, ?, 'aluna')")->execute([$_POST['nome'], $_POST['email'], $_POST['telefone'], $senha_hash]);
-            $msg_sucesso = "Nova aluna cadastrada e pronta para o tatame!";
+            $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo) VALUES (?, ?, ?, ?, 'aluno')")->execute([$_POST['nome'], $_POST['email'], $_POST['telefone'], $senha_hash]);
+            $msg_sucesso = "Novo(a) aluno(a) cadastrado(a) e pronto(a) para o tatame!";
         } catch(PDOException $e) {
             $msg_erro = "Erro: Este e-mail já está registado no sistema.";
         }
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // ==========================================
 // BUSCAS NO BANCO DE DADOS
 // ==========================================
-$alunas = $pdo->query("SELECT * FROM usuarios WHERE tipo = 'aluna' ORDER BY nome")->fetchAll();
+$alunas = $pdo->query("SELECT * FROM usuarios WHERE tipo IN ('aluno','aluna') ORDER BY nome")->fetchAll();
 $planos = $pdo->query("SELECT * FROM planos_tabela WHERE ativo = 1")->fetchAll();
 
 $missao_atual = false;

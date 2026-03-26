@@ -6,18 +6,20 @@ try {
 
 $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $login = 'van@van';
+    $login = 'konex';
     $senha_criptografada = password_hash($_POST['senha'], PASSWORD_DEFAULT);
     
-    $check = $pdo->prepare("SELECT id FROM usuarios WHERE login = ?");
+    $check = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
     $check->execute([$login]);
     
     if ($check->fetch()) {
-        $pdo->prepare("UPDATE usuarios SET senha = ?, nivel_acesso = 'admin' WHERE login = ?")->execute([$senha_criptografada, $login]);
-        $msg = "Senha do Admin atualizada com sucesso!";
+        $pdo->prepare("UPDATE usuarios SET senha = ?, tipo = 'admin' WHERE email = ?")
+            ->execute([$senha_criptografada, $login]);
+        $msg = "Senha do Admin Master atualizada com sucesso!";
     } else {
-        $pdo->prepare("INSERT INTO usuarios (nome, login, senha, nivel_acesso) VALUES ('Vanessa', ?, ?, 'admin')")->execute([$login, $senha_criptografada]);
-        $msg = "Conta Admin criada com sucesso!";
+        $pdo->prepare("INSERT INTO usuarios (nome, email, senha, tipo) VALUES ('Gestão Konex', ?, ?, 'admin')")
+            ->execute([$login, $senha_criptografada]);
+        $msg = "Conta Admin Master criada com sucesso!";
     }
 }
 ?>
@@ -25,13 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gerador Admin</title>
+    <title>Gerador Admin Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-[#0f0a1a] text-white flex items-center justify-center h-screen">
     <div class="bg-[#1a1429] p-8 rounded-3xl border border-[#D946EF] text-center w-96 shadow-[0_0_20px_rgba(217,70,239,0.3)]">
-        <h1 class="text-2xl font-black italic text-[#D946EF] mb-6">Master Admin</h1>
-        <?php if($msg): ?><p class="bg-[#10B981]/20 text-[#10B981] p-3 rounded-xl mb-4 text-xs font-bold"><?php echo $msg; ?></p><?php endif; ?>
+        <h1 class="text-2xl font-black italic text-[#D946EF] mb-6">Admin Master</h1>
+        <?php if($msg): ?><p class="bg-[#10B981]/20 text-[#10B981] p-3 rounded-xl mb-4 text-xs font-bold"><?php echo htmlspecialchars($msg); ?></p><?php endif; ?>
         <form method="POST" class="space-y-4 text-left">
             <div>
                 <label class="text-[10px] font-black uppercase text-slate-400">Login Fixo</label>
@@ -42,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="password" name="senha" required class="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-[#D946EF]">
             </div>
             <button class="w-full bg-gradient-to-r from-[#D946EF] to-[#7C3AED] text-white font-black py-4 rounded-xl uppercase shadow-lg hover:scale-105 transition-transform">Salvar Senha</button>
-            <a href="index.php" class="block text-center text-[10px] font-black uppercase text-slate-400 mt-4 hover:text-white">Ir para o Login</a>
+            <a href="login.php" class="block text-center text-[10px] font-black uppercase text-slate-400 mt-4 hover:text-white">Ir para o Login</a>
         </form>
     </div>
 </body>
