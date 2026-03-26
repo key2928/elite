@@ -4,7 +4,6 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 require 'config.php';
-session_start();
 
 // Verificação de Acesso: Treinador, Professor ou Instrutor
 if (!isset($_SESSION['usuario_tipo']) || !in_array($_SESSION['usuario_tipo'], ['treinador', 'professor', 'instrutor'])) { 
