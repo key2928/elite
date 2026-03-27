@@ -68,6 +68,30 @@ try {
     $avisos = $pdo->query("SELECT * FROM mural_avisos ORDER BY data_publicacao DESC LIMIT 3")->fetchAll();
     $grade_horarios = $pdo->query("SELECT * FROM horarios_treino ORDER BY id ASC")->fetchAll();
 
+    // Presença do mês atual
+    $presencas_mes = [];
+    try {
+        $stmtPM = $pdo->prepare("SELECT data_presenca, presente FROM presencas WHERE aluno_id=? AND data_presenca LIKE ? ORDER BY data_presenca ASC");
+        $stmtPM->execute([$id, date('Y-m') . '%']);
+        $presencas_mes = $stmtPM->fetchAll();
+    } catch (Exception $ex) {}
+
+    // Brindes ganhos pela aluna (roleta disponível?)
+    $brindes_aluna = [];
+    $brinde_roleta = null;
+    try {
+        $stmtBA = $pdo->prepare("SELECT ba.*, b.nome as brinde_nome FROM brindes_aluna ba LEFT JOIN brindes b ON ba.brinde_id=b.id WHERE ba.aluna_id=? ORDER BY ba.created_at DESC");
+        $stmtBA->execute([$id]);
+        $brindes_aluna = $stmtBA->fetchAll();
+        foreach ($brindes_aluna as $ba) {
+            if (!$ba['roleta_girada']) { $brinde_roleta = $ba; break; }
+        }
+    } catch (Exception $ex) {}
+
+    // Brindes disponíveis para roleta
+    $brindes_lista = [];
+    try { $brindes_lista = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY nome")->fetchAll(); } catch (Exception $ex) {}
+
     $treinadoras = [];
     try { $treinadoras = $pdo->query("SELECT nome, telefone FROM usuarios WHERE tipo = 'treinador'")->fetchAll(); } catch (Exception $ex) {}
 
@@ -315,19 +339,9 @@ try {
     <?php endif; ?>
 
     <!-- Evolução -->
-    <div class="card">
-        <h3 class="card-titulo"><i class="fas fa-bolt"></i> Evolução</h3>
-        <p style="font-size:12px;color:var(--cinza);text-align:center;margin-top:-10px;margin-bottom:20px">Mantenha a ofensiva de treinos para ganhar mais XP!</p>
-        <div class="dias-semana">
-            <?php if (count($grade_horarios) > 0): ?>
-                <?php foreach ($grade_horarios as $hr): ?>
-                    <div class="dia ativo"><?= mb_strtoupper(mb_substr($hr['dia_semana'], 0, 1, 'UTF-8'), 'UTF-8') ?></div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <p style="font-size:12px;color:#555">Sem treinos configurados.</p>
-            <?php endif; ?>
-        </div>
-        <div class="xp-box">
+    <div class="card" id="card-evolucao">
+        <h3 class="card-titulo"><i class="fas fa-chart-line"></i> Evolução</h3>
+        <div class="xp-box" style="margin-bottom:15px">
             <div class="xp-texto">
                 <span>Nível <?= $nivel ?></span>
                 <span style="color:#d62bc5"><?= $xp ?> / <?= $xp_prox_nivel ?> XP</span>
@@ -336,7 +350,90 @@ try {
                 <div class="xp-fill" style="width:<?= $porcentagem_xp ?>%"></div>
             </div>
         </div>
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+            <div style="flex:1;min-width:100px;background:#050308;border:1px solid var(--borda);border-radius:12px;padding:14px;text-align:center">
+                <div style="font-size:26px;font-weight:800;color:#d62bc5"><?= $treinos_totais ?></div>
+                <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;font-weight:600">Treinos</div>
+            </div>
+            <div style="flex:1;min-width:100px;background:#050308;border:1px solid var(--borda);border-radius:12px;padding:14px;text-align:center">
+                <div style="font-size:26px;font-weight:800;color:#f1c40f"><?= count($medalhas) ?></div>
+                <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;font-weight:600">Medalhas</div>
+            </div>
+            <div style="flex:1;min-width:100px;background:#050308;border:1px solid var(--borda);border-radius:12px;padding:14px;text-align:center">
+                <?php
+                $faltas_mes = count(array_filter($presencas_mes, fn($p) => !(int)$p['presente']));
+                $presentes_mes = count(array_filter($presencas_mes, fn($p) => (int)$p['presente']));
+                ?>
+                <div style="font-size:26px;font-weight:800;color:<?= $faltas_mes === 0 ? '#2ecc71' : '#ff4444' ?>"><?= $faltas_mes ?></div>
+                <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;font-weight:600">Faltas/mês</div>
+            </div>
+        </div>
+
+        <!-- Presença do mês (calendário visual) -->
+        <?php if (!empty($presencas_mes)): ?>
+        <div style="font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:10px"><i class="fas fa-calendar-check"></i> Frequência em <?= date('m/Y') ?></div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:15px">
+            <?php foreach ($presencas_mes as $pm): ?>
+                <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;<?= (int)$pm['presente'] ? 'background:rgba(46,204,113,.2);color:#2ecc71;border:1px solid #2ecc71' : 'background:rgba(255,68,68,.2);color:#ff4444;border:1px solid #ff4444' ?>" title="<?= date('d/m', strtotime($pm['data_presenca'])) ?>">
+                    <?= date('d', strtotime($pm['data_presenca'])) ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Conquistas acumuladas -->
+        <?php if (!empty($medalhas)): ?>
+        <div style="font-size:12px;color:#f1c40f;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:10px"><i class="fas fa-trophy"></i> Conquistas</div>
+        <div class="grid-medalhas">
+            <?php foreach ($medalhas as $m): ?>
+            <div class="medalha">
+                <div class="medalha-icone"><?= $m['icone_emoji'] ?></div>
+                <div class="medalha-nome"><?= e($m['nome_medalha']) ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
+
+    <!-- Brindes / Roleta -->
+    <?php if (!empty($brindes_aluna)): ?>
+    <div class="card" style="border-color:#f1c40f;background:linear-gradient(180deg,var(--card),rgba(241,196,15,.05))">
+        <h3 class="card-titulo" style="color:#f1c40f"><i class="fas fa-gift" style="background:none;-webkit-text-fill-color:#f1c40f"></i> Meus Brindes</h3>
+
+        <?php if ($brinde_roleta): ?>
+        <div style="text-align:center;margin-bottom:20px">
+            <p style="font-size:13px;color:#f1c40f;font-weight:700;margin-bottom:10px">🎉 Parabéns! Você completou o mês sem faltar! Gire a roleta para ganhar o seu prêmio!</p>
+            <div id="roleta-container" style="position:relative;width:220px;height:220px;margin:0 auto 15px">
+                <canvas id="roletaCanvas" width="220" height="220" style="border-radius:50%;border:3px solid #f1c40f;box-shadow:0 0 20px rgba(241,196,15,.5)"></canvas>
+                <div id="roleta-ponteiro" style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:24px solid #f1c40f;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))"></div>
+            </div>
+            <button id="btnGirar" onclick="girarRoleta()" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;border:none;padding:14px 28px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;transition:.3s;box-shadow:0 5px 20px rgba(241,196,15,.4)"><i class="fas fa-sync-alt"></i> Girar!</button>
+            <form id="formRoleta" method="POST" style="display:none">
+                <input type="hidden" name="acao" value="girar_roleta">
+                <input type="hidden" name="ba_id" value="<?= (int)$brinde_roleta['id'] ?>">
+                <input type="hidden" name="brinde_id" id="roletaBrindeId" value="">
+            </form>
+        </div>
+        <?php endif; ?>
+
+        <?php foreach ($brindes_aluna as $ba): ?>
+        <div style="background:rgba(255,255,255,.02);border:1px solid <?= $ba['entregue'] ? '#2ecc71' : ($ba['roleta_girada'] ? '#d62bc5' : '#f1c40f') ?>;padding:12px;border-radius:12px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-weight:700;font-size:13px">
+                        <?php $t = $ba['brinde_nome'] ?? $ba['brinde_manual'] ?? ''; ?>
+                        <?= $ba['entregue'] ? '✅' : ($ba['roleta_girada'] ? '🎁' : '🎰') ?> <?= $t ? e($t) : 'Prêmio do mês' ?>
+                    </div>
+                    <div style="font-size:11px;color:var(--cinza)"><i class="fas fa-calendar-alt"></i> <?= e($ba['mes_referencia']) ?></div>
+                </div>
+                <span style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;<?= $ba['entregue'] ? 'background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71' : ($ba['roleta_girada'] ? 'background:rgba(214,43,197,.15);color:#d62bc5;border:1px solid #d62bc5' : 'background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f') ?>">
+                    <?= $ba['entregue'] ? 'Entregue' : ($ba['roleta_girada'] ? 'Aguardando' : 'Gire!') ?>
+                </span>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (!empty($minhas_turmas_aluno)): ?>
     <!-- Minha Turma -->
@@ -404,23 +501,6 @@ try {
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
-
-    <!-- Conquistas -->
-    <div class="card">
-        <h3 class="card-titulo"><i class="fas fa-award"></i> As Suas Conquistas</h3>
-        <?php if (count($medalhas) > 0): ?>
-            <div class="grid-medalhas">
-                <?php foreach ($medalhas as $m): ?>
-                <div class="medalha">
-                    <div class="medalha-icone"><?= $m['icone_emoji'] ?></div>
-                    <div class="medalha-nome"><?= e($m['nome_medalha']) ?></div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <p style="color:var(--cinza);font-size:13px;text-align:center">Treine forte para ganhar a sua primeira medalha!</p>
-        <?php endif; ?>
-    </div>
 
     <!-- Plano -->
     <div class="card">
@@ -576,6 +656,81 @@ function compartilharLink() {
         alert('Link copiado!');
     }
 }
+
+// Roulette wheel
+<?php if ($brinde_roleta && !empty($brindes_lista)): ?>
+(function(){
+    var premios = <?= json_encode(array_column($brindes_lista, 'nome')) ?>;
+    var ids     = <?= json_encode(array_column($brindes_lista, 'id')) ?>;
+    var canvas  = document.getElementById('roletaCanvas');
+    if (!canvas) return;
+    var ctx    = canvas.getContext('2d');
+    var arc    = Math.PI * 2 / premios.length;
+    var colors = ['#d62bc5','#7b2cbf','#FF8C00','#3498db','#2ecc71','#e74c3c','#f1c40f','#1abc9c'];
+    var currentAngle = 0;
+    var spinning     = false;
+
+    function drawWheel(angle) {
+        ctx.clearRect(0,0,220,220);
+        for (var i = 0; i < premios.length; i++) {
+            ctx.beginPath();
+            ctx.moveTo(110,110);
+            ctx.arc(110,110,108, angle + arc*i, angle + arc*(i+1));
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fill();
+            ctx.strokeStyle = '#09060f';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.save();
+            ctx.translate(110,110);
+            ctx.rotate(angle + arc*i + arc/2);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 11px Poppins,sans-serif';
+            var txt = premios[i].length > 12 ? premios[i].substring(0,12)+'\u2026' : premios[i];
+            ctx.fillText(txt, 100, 5);
+            ctx.restore();
+        }
+    }
+
+    drawWheel(0);
+
+    window.girarRoleta = function() {
+        if (spinning) return;
+        spinning = true;
+        document.getElementById('btnGirar').disabled = true;
+        var extra    = Math.PI * 2 * (5 + Math.floor(Math.random()*5));
+        var ganhou   = Math.floor(Math.random() * premios.length);
+        var finalAngle = extra + (Math.PI * 2 - arc * ganhou - arc/2);
+        var start    = null;
+        var duration = 4000;
+
+        function animate(ts) {
+            if (!start) start = ts;
+            var progress = Math.min((ts - start) / duration, 1);
+            var ease     = 1 - Math.pow(1 - progress, 4);
+            currentAngle = ease * finalAngle;
+            drawWheel(currentAngle);
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                spinning = false;
+                var nome = premios[ganhou];
+                var bId  = ids[ganhou] || '';
+                document.getElementById('roletaBrindeId').value = bId;
+                setTimeout(function(){
+                    // Show toast notification instead of alert
+                    var toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#1a0a2e,#2a1b3d);border:2px solid #f1c40f;border-radius:20px;padding:28px 32px;z-index:9999;text-align:center;color:#fff;font-family:Poppins,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.8);max-width:320px;width:90%';
+                    toast.innerHTML = '<div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:18px;font-weight:800;color:#f1c40f;margin-bottom:8px">Você ganhou!</div><div style="font-size:15px;margin-bottom:20px">' + nome + '</div><div style="font-size:12px;color:#b5a8c9;margin-bottom:16px">Aguarde a entrega do seu prêmio!</div><button onclick="this.parentNode.remove();document.getElementById(\'formRoleta\').submit();" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;border:none;padding:12px 28px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer">✔ Ok, obrigada!</button>';
+                    document.body.appendChild(toast);
+                }, 200);
+            }
+        }
+        requestAnimationFrame(animate);
+    };
+})();
+<?php endif; ?>
 </script>
 </body>
 </html>

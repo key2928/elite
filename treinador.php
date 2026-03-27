@@ -6,18 +6,111 @@ if (!isset($_SESSION['usuario_tipo']) || !in_array($_SESSION['usuario_tipo'], ['
     exit;
 }
 
+// AJAX: return students for a given turma
+if (isset($_GET['get_alunos_turma'])) {
+    $tid = (int)($_GET['turma_id'] ?? 0);
+    $rows = [];
+    try {
+        $s = $pdo->prepare("SELECT u.id FROM usuarios u JOIN aluno_turmas at2 ON u.id=at2.aluno_id WHERE at2.turma_id=? AND u.tipo='aluno' AND u.ativo=1");
+        $s->execute([$tid]);
+        $rows = $s->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {}
+    header('Content-Type: application/json');
+    echo json_encode(array_map('intval', $rows));
+    exit;
+}
+
+function calcularDiasTreinados(string $mes, string $dia_semana): array {
+    $map = [
+        'segunda' => 1, 'monday' => 1,
+        'terça'   => 2, 'terca'  => 2, 'tuesday'  => 2,
+        'quarta'  => 3, 'wednesday' => 3,
+        'quinta'  => 4, 'thursday'  => 4,
+        'sexta'   => 5, 'friday'    => 5,
+        'sábado'  => 6, 'sabado' => 6, 'saturday' => 6,
+        'domingo' => 0, 'sunday'    => 0,
+    ];
+    $dw = null;
+    $lc = mb_strtolower($dia_semana, 'UTF-8');
+    foreach ($map as $key => $val) {
+        if (str_contains($lc, $key)) { $dw = $val; break; }
+    }
+    if ($dw === null) return [];
+    $dias = [];
+    $data = new DateTime($mes . '-01');
+    $ultimo = (int)$data->format('t');
+    for ($d = 1; $d <= $ultimo; $d++) {
+        $data->setDate((int)$data->format('Y'), (int)$data->format('m'), $d);
+        if ((int)$data->format('w') === $dw) {
+            $dias[] = $data->format('Y-m-d');
+        }
+    }
+    return $dias;
+}
+
 $msg_sucesso = '';
 $msg_erro = '';
+$prof_id = (int)$_SESSION['usuario_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
-    // 1. Marcar Presença
-    if ($acao === 'add_treino') {
-        $id_aluna = (int)($_POST['aluna_id'] ?? 0);
-        $pdo->prepare("UPDATE usuarios SET treinos_concluidos = COALESCE(treinos_concluidos,0)+1, xp_atual = COALESCE(xp_atual,0)+20 WHERE id = ?")
-            ->execute([$id_aluna]);
-        $msg_sucesso = 'Presença confirmada! +1 treino e +20 XP.';
+    // 1. Chamada (bulk attendance)
+    if ($acao === 'chamada_turma') {
+        $turma_id    = (int)($_POST['turma_id'] ?? 0);
+        $data_aula   = $_POST['data_presenca'] ?? date('Y-m-d');
+        $presentes   = array_map('intval', (array)($_POST['presentes'] ?? []));
+
+        $stmtAlunos = $pdo->prepare("SELECT u.id FROM usuarios u JOIN aluno_turmas at2 ON u.id = at2.aluno_id WHERE at2.turma_id = ? AND u.tipo = 'aluno' AND u.ativo = 1");
+        $stmtAlunos->execute([$turma_id]);
+        $ids_turma = $stmtAlunos->fetchAll(PDO::FETCH_COLUMN);
+
+        $novos = 0;
+        foreach ($ids_turma as $aid) {
+            $esta = in_array($aid, $presentes, true) ? 1 : 0;
+            $pdo->prepare("INSERT INTO presencas (aluno_id, professor_id, data_presenca, presente) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE presente=VALUES(presente), professor_id=VALUES(professor_id)")
+                ->execute([$aid, $prof_id, $data_aula, $esta]);
+            if ($esta) {
+                $pdo->prepare("UPDATE usuarios SET treinos_concluidos=COALESCE(treinos_concluidos,0)+1, xp_atual=COALESCE(xp_atual,0)+20 WHERE id=?")
+                    ->execute([$aid]);
+                $novos++;
+            }
+        }
+
+        $mes = substr($data_aula, 0, 7);
+        $hoje = date('Y-m-d');
+        // Fetch turma schedule once, outside the per-student loop
+        $stmtHor = $pdo->prepare("SELECT h.dia_semana FROM horarios_treino h JOIN turmas t ON t.horario_id = h.id WHERE t.id = ?");
+        $stmtHor->execute([$turma_id]);
+        $hor = $stmtHor->fetch();
+        $dias_passados = [];
+        $ultimo_dia = date('Y-m-t', strtotime($mes.'-01'));
+        if ($hor) {
+            $dias_treino = calcularDiasTreinados($mes, $hor['dia_semana']);
+            $dias_passados = array_values(array_filter($dias_treino, fn($d) => $d <= $hoje));
+        }
+
+        foreach ($presentes as $aid) {
+            if (!in_array($aid, $ids_turma, true)) continue;
+            if ($hor && count($dias_passados) > 0) {
+                $ph = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca LIKE ? AND presente=0");
+                $ph->execute([$aid, $mes.'%']);
+                $faltas = (int)$ph->fetchColumn();
+                $pp = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca IN (".implode(',',array_fill(0,count($dias_passados),'?')).") AND presente=1");
+                $pp->execute(array_merge([$aid], $dias_passados));
+                $presencas_ok = (int)$pp->fetchColumn();
+                if ($faltas === 0 && $presencas_ok === count($dias_passados) && strtotime($hoje) >= strtotime($ultimo_dia)) {
+                    $chk = $pdo->prepare("SELECT id FROM brindes_aluna WHERE aluna_id=? AND mes_referencia=?");
+                    $chk->execute([$aid, $mes]);
+                    if (!$chk->fetch()) {
+                        $pdo->prepare("INSERT INTO brindes_aluna (aluna_id, mes_referencia, instrutor_id) VALUES (?,?,?)")
+                            ->execute([$aid, $mes, $prof_id]);
+                    }
+                }
+            }
+        }
+
+        $msg_sucesso = "Chamada salva! {$novos} presente(s) registado(s) em " . date('d/m/Y', strtotime($data_aula)) . ".";
     }
 
     // 2. Dar Medalha
@@ -51,6 +144,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, forma_pagamento) VALUES (?,?,?,?,?,?,?,?)")
                 ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $_POST['forma_pagamento'] ?? 'pix']);
             $msg_sucesso = 'Pagamento registado com sucesso!';
+        }
+    }
+
+    // 5b. Adicionar Brinde
+    if ($acao === 'add_brinde') {
+        $nome = trim($_POST['nome_brinde'] ?? '');
+        if ($nome !== '') {
+            $pdo->prepare("INSERT INTO brindes (nome, descricao) VALUES (?,?)")
+                ->execute([$nome, trim($_POST['desc_brinde'] ?? '')]);
+            $msg_sucesso = 'Brinde adicionado!';
+        }
+    }
+
+    // 5c. Registar Brinde Manual (treinador atribui manualmente a aluna)
+    if ($acao === 'brinde_manual') {
+        $aluna_id = (int)($_POST['aluna_id'] ?? 0);
+        $mes      = $_POST['mes_referencia'] ?? date('Y-m');
+        $texto    = trim($_POST['brinde_manual'] ?? '');
+        if ($aluna_id && $texto) {
+            try {
+                $pdo->prepare("INSERT INTO brindes_aluna (aluna_id, mes_referencia, brinde_manual, instrutor_id) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE brinde_manual=VALUES(brinde_manual)")
+                    ->execute([$aluna_id, $mes, $texto, $prof_id]);
+                $msg_sucesso = 'Brinde registado!';
+            } catch (PDOException $e) { $msg_erro = 'Erro ao registar.'; }
+        }
+    }
+
+    // 5d. Entregar Brinde
+    if ($acao === 'entregar_brinde') {
+        $ba_id = (int)($_POST['ba_id'] ?? 0);
+        $pdo->prepare("UPDATE brindes_aluna SET entregue=1, data_entrega=NOW() WHERE id=?")
+            ->execute([$ba_id]);
+        $msg_sucesso = 'Brinde marcado como entregue!';
+    }
+
+    // 5e. Girar Roleta (aluna girou, registar brinde)
+    if ($acao === 'girar_roleta') {
+        $ba_id    = (int)($_POST['ba_id'] ?? 0);
+        $brinde_id = (int)($_POST['brinde_id'] ?? 0);
+        if ($ba_id) {
+            $pdo->prepare("UPDATE brindes_aluna SET roleta_girada=1, brinde_id=? WHERE id=? AND roleta_girada=0")
+                ->execute([$brinde_id ?: null, $ba_id]);
+            $msg_sucesso = 'Parabéns! Brinde registado — aguarde a entrega!';
         }
     }
 
@@ -108,8 +244,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$prof_id = (int)$_SESSION['usuario_id'];
-
 // Turmas deste professor/treinador
 $minhas_turmas = [];
 try {
@@ -147,6 +281,35 @@ try {
 } catch (Exception $e) {}
 
 $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'Cartão Débito', 'dinheiro' => 'Dinheiro'];
+
+// Brindes disponíveis
+$brindes_disponiveis = [];
+try { $brindes_disponiveis = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY nome")->fetchAll(); } catch (Exception $e) {}
+
+// Brindes a entregar (ganhos pelos alunos deste treinador)
+$brindes_pendentes = [];
+try {
+    $aluno_ids = array_column($alunas, 'id');
+    if (!empty($aluno_ids)) {
+        $in = implode(',', array_fill(0, count($aluno_ids), '?'));
+        $stmtBP = $pdo->prepare("SELECT ba.*, u.nome as aluna_nome, b.nome as brinde_nome FROM brindes_aluna ba JOIN usuarios u ON ba.aluna_id=u.id LEFT JOIN brindes b ON ba.brinde_id=b.id WHERE ba.aluna_id IN ($in) ORDER BY ba.created_at DESC");
+        $stmtBP->execute($aluno_ids);
+        $brindes_pendentes = $stmtBP->fetchAll();
+    }
+} catch (Exception $e) {}
+
+// Presences today (for attendance prefill)
+$presencas_hoje = [];
+try {
+    $aluno_ids_all = array_column($alunas, 'id');
+    if (!empty($aluno_ids_all)) {
+        $in2 = implode(',', array_fill(0, count($aluno_ids_all), '?'));
+        $args = array_merge($aluno_ids_all, [date('Y-m-d')]);
+        $stmtPH = $pdo->prepare("SELECT aluno_id FROM presencas WHERE aluno_id IN ($in2) AND data_presenca=? AND presente=1");
+        $stmtPH->execute($args);
+        $presencas_hoje = array_map('intval', $stmtPH->fetchAll(PDO::FETCH_COLUMN));
+    }
+} catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -214,20 +377,32 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
     <?php if ($msg_sucesso): ?><div class="alerta"><i class="fas fa-check-circle"></i> <?= e($msg_sucesso) ?></div><?php endif; ?>
     <?php if ($msg_erro): ?><div class="alerta-erro"><i class="fas fa-exclamation-triangle"></i> <?= e($msg_erro) ?></div><?php endif; ?>
 
-    <!-- Presença -->
+    <!-- Chamada -->
     <div class="card" style="border-left:4px solid #2ecc71">
-        <h3 class="card-titulo"><i class="fas fa-id-card" style="background:none;-webkit-text-fill-color:#2ecc71"></i> Presença no Tatame</h3>
-        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">+1 treino no cartão e +20 XP.</p>
-        <form method="POST">
-            <input type="hidden" name="acao" value="add_treino">
-            <select name="aluna_id" required>
-                <option value="">Selecione o(a) aluno(a)...</option>
-                <?php foreach ($alunas as $a): ?>
-                    <option value="<?= (int)$a['id'] ?>"><?= e($a['nome']) ?></option>
+        <h3 class="card-titulo"><i class="fas fa-clipboard-list" style="background:none;-webkit-text-fill-color:#2ecc71"></i> Chamada da Turma</h3>
+        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Selecione a turma, confirme a data e marque quem compareceu.</p>
+        <form method="POST" id="formChamada">
+            <input type="hidden" name="acao" value="chamada_turma">
+            <select name="turma_id" id="selectTurma" onchange="carregarAlunos()" required>
+                <option value="">Selecione a turma...</option>
+                <?php foreach ($minhas_turmas as $mt): ?>
+                    <option value="<?= (int)$mt['id'] ?>"><?= e($mt['nome']) ?><?= $mt['dia_semana'] ? ' — ' . e($mt['dia_semana'] . ' ' . $mt['horario']) : '' ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#11998e,#38ef7d);box-shadow:0 5px 15px rgba(56,239,125,.3);color:#000">
-                <i class="fas fa-check"></i> Confirmar Presença
+            <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px">Data da Aula</label>
+            <input type="date" name="data_presenca" id="dataPresenca" value="<?= date('Y-m-d') ?>" required style="margin-bottom:15px">
+            <div id="listaAlunos" style="margin-bottom:15px;display:none">
+                <div style="font-size:12px;color:var(--cinza);margin-bottom:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px"><i class="fas fa-users"></i> Alunos da Turma</div>
+                <?php foreach ($alunas as $a): ?>
+                <label id="la-<?= (int)$a['id'] ?>" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.02);border:1px solid var(--borda);padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;transition:.3s" class="aluno-check-row" data-aluno-id="<?= (int)$a['id'] ?>">
+                    <input type="checkbox" name="presentes[]" value="<?= (int)$a['id'] ?>" style="width:18px;height:18px;margin:0;accent-color:#2ecc71" <?= in_array((int)$a['id'], $presencas_hoje) ? 'checked' : '' ?>>
+                    <span style="flex:1;font-weight:600;font-size:14px"><?= e($a['nome']) ?></span>
+                    <span style="font-size:11px;color:var(--cinza)"><?= e($a['turmas_nomes'] ?? '') ?></span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <button type="submit" id="btnChamada" class="btn-submit" style="display:none;background:linear-gradient(90deg,#11998e,#38ef7d);box-shadow:0 5px 15px rgba(56,239,125,.3);color:#000">
+                <i class="fas fa-check-double"></i> Salvar Chamada
             </button>
         </form>
     </div>
@@ -507,6 +682,70 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
         </form>
     </div>
 
+    <!-- Brindes -->
+    <div class="card" style="border-color:#f1c40f">
+        <h3 class="card-titulo" style="color:#f1c40f"><i class="fas fa-gift" style="background:none;-webkit-text-fill-color:#f1c40f"></i> Brindes & Recompensas</h3>
+
+        <!-- Adicionar brinde -->
+        <details style="margin-bottom:15px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#f1c40f;list-style:none;padding:10px;background:rgba(241,196,15,.07);border-radius:10px"><i class="fas fa-plus-circle"></i> Adicionar novo brinde</summary>
+            <form method="POST" style="margin-top:12px">
+                <input type="hidden" name="acao" value="add_brinde">
+                <input type="text" name="nome_brinde" placeholder="Nome do brinde (Ex: Garrafa)" required>
+                <input type="text" name="desc_brinde" placeholder="Descrição (opcional)">
+                <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;box-shadow:none;font-size:13px;padding:12px"><i class="fas fa-plus"></i> Salvar</button>
+            </form>
+        </details>
+
+        <!-- Registar brinde manual -->
+        <details style="margin-bottom:15px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#d62bc5;list-style:none;padding:10px;background:rgba(214,43,197,.07);border-radius:10px"><i class="fas fa-hand-holding-heart"></i> Atribuir brinde manualmente</summary>
+            <form method="POST" style="margin-top:12px">
+                <input type="hidden" name="acao" value="brinde_manual">
+                <select name="aluna_id" required>
+                    <option value="">Selecione a aluna...</option>
+                    <?php foreach ($alunas as $a): ?><option value="<?= (int)$a['id'] ?>"><?= e($a['nome']) ?></option><?php endforeach; ?>
+                </select>
+                <input type="month" name="mes_referencia" value="<?= date('Y-m') ?>" required>
+                <input type="text" name="brinde_manual" placeholder="Ex: Camiseta Elite, Luva personalizada..." required>
+                <button type="submit" class="btn-submit" style="background:var(--pink);font-size:13px;padding:12px"><i class="fas fa-gift"></i> Registar</button>
+            </form>
+        </details>
+
+        <!-- Lista de brindes pendentes -->
+        <div style="font-size:12px;color:var(--cinza);margin-bottom:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px"><i class="fas fa-list-ul"></i> Brindes Registados</div>
+        <?php if (empty($brindes_pendentes)): ?>
+            <p style="font-size:12px;color:#555;text-align:center">Nenhum brinde registado ainda.</p>
+        <?php else: ?>
+        <?php foreach ($brindes_pendentes as $bp): ?>
+            <div style="background:rgba(255,255,255,.02);border:1px solid <?= $bp['entregue'] ? '#2ecc71' : '#f1c40f' ?>;padding:12px;border-radius:12px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <strong style="font-size:13px"><?= e($bp['aluna_nome']) ?></strong>
+                    <?php if ($bp['entregue']): ?>
+                        <span style="background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">✅ Entregue</span>
+                    <?php elseif (!$bp['roleta_girada']): ?>
+                        <span style="background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">⏳ Aguardando roleta</span>
+                    <?php else: ?>
+                        <span style="background:rgba(214,43,197,.15);color:#d62bc5;border:1px solid #d62bc5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">🎁 Roleta girada</span>
+                    <?php endif; ?>
+                </div>
+                <div style="font-size:12px;color:var(--cinza)">
+                    <?php $txt = $bp['brinde_nome'] ?? $bp['brinde_manual'] ?? '—'; ?>
+                    <i class="fas fa-gift" style="color:#f1c40f;margin-right:4px"></i> <?= e($txt) ?>
+                    &nbsp;|&nbsp;<i class="fas fa-calendar-alt" style="color:#7b2cbf;margin-right:4px"></i> <?= e($bp['mes_referencia']) ?>
+                </div>
+                <?php if (!$bp['entregue']): ?>
+                <form method="POST" style="margin-top:8px">
+                    <input type="hidden" name="acao" value="entregar_brinde">
+                    <input type="hidden" name="ba_id" value="<?= (int)$bp['id'] ?>">
+                    <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#11998e,#38ef7d);color:#000;box-shadow:none;font-size:12px;padding:10px"><i class="fas fa-box-open"></i> Marcar como Entregue</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
 </div>
 
 <script>
@@ -526,6 +765,33 @@ function toggleDiv(id) {
         el.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
 }
+
+// Chamada: filter students by selected turma using AJAX JSON endpoint
+function carregarAlunos() {
+    var turmaId = document.getElementById('selectTurma').value;
+    var lista = document.getElementById('listaAlunos');
+    var btn   = document.getElementById('btnChamada');
+    if (!turmaId) {
+        lista.style.display = 'none';
+        btn.style.display   = 'none';
+        document.querySelectorAll('.aluno-check-row').forEach(function(r){ r.style.display='none'; });
+        return;
+    }
+    lista.style.display = 'block';
+    btn.style.display   = 'block';
+    fetch('treinador.php?get_alunos_turma=1&turma_id=' + turmaId)
+        .then(function(r){ return r.json(); })
+        .then(function(ids) {
+            document.querySelectorAll('.aluno-check-row').forEach(function(row) {
+                var aid = parseInt(row.getAttribute('data-aluno-id'));
+                row.style.display = ids.includes(aid) ? 'flex' : 'none';
+            });
+        })
+        .catch(function() {
+            document.querySelectorAll('.aluno-check-row').forEach(function(r){ r.style.display='flex'; });
+        });
+}
+
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(function(){});
 }
