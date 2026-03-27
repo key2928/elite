@@ -186,6 +186,19 @@ CREATE TABLE IF NOT EXISTS `turmas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- TABELA: turma_professores (Múltiplos professores por turma)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `turma_professores` (
+    `turma_id`     INT(11) NOT NULL,
+    `professor_id` INT(11) NOT NULL,
+    PRIMARY KEY (`turma_id`, `professor_id`),
+    KEY `fk_tp_turma` (`turma_id`),
+    KEY `fk_tp_prof`  (`professor_id`),
+    CONSTRAINT `fk_tp_turma` FOREIGN KEY (`turma_id`)     REFERENCES `turmas`   (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_tp_prof`  FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- TABELA: aluno_turmas (Alunos alocados em turmas)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `aluno_turmas` (
@@ -237,3 +250,7 @@ ALTER TABLE `usuarios`
 
 ALTER TABLE `pagamentos`
     ADD COLUMN IF NOT EXISTS `forma_pagamento` ENUM('pix','credito','debito','dinheiro') NOT NULL DEFAULT 'pix';
+
+-- Migração: popular turma_professores a partir do professor_id legado em turmas
+INSERT IGNORE INTO `turma_professores` (`turma_id`, `professor_id`)
+SELECT `id`, `professor_id` FROM `turmas` WHERE `professor_id` IS NOT NULL;
