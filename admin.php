@@ -35,6 +35,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Usuário removido.';
     }
 
+    // 2b. Editar Usuário (login, senha, permissão)
+    if ($acao === 'editar_usuario') {
+        $id_edit    = (int)($_POST['id'] ?? 0);
+        $email      = trim($_POST['email'] ?? '');
+        $tipo       = $_POST['tipo'] ?? 'aluno';
+        $nova_senha = $_POST['nova_senha'] ?? '';
+        $tipos_validos = ['admin', 'professor', 'treinador', 'instrutor', 'aluno'];
+        if ($id_edit && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && in_array($tipo, $tipos_validos, true)) {
+            try {
+                if ($nova_senha !== '') {
+                    $senha_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
+                    $pdo->prepare("UPDATE usuarios SET email=?, tipo=?, senha=? WHERE id=?")
+                        ->execute([$email, $tipo, $senha_hash, $id_edit]);
+                } else {
+                    $pdo->prepare("UPDATE usuarios SET email=?, tipo=? WHERE id=?")
+                        ->execute([$email, $tipo, $id_edit]);
+                }
+                $msg_sucesso = 'Usuário atualizado com sucesso!';
+            } catch (PDOException $e) {
+                $msg_erro = 'Erro: Este e-mail/login já está em uso por outro usuário.';
+            }
+        } else {
+            $msg_erro = 'Dados inválidos. Verifique o e-mail e o nível de permissão.';
+        }
+    }
+
     // 3. Adicionar Plano
     if ($acao === 'add_plano') {
         $pdo->prepare("INSERT INTO planos_tabela (nome_plano, valor, duracao_meses) VALUES (?,?,?)")
@@ -229,7 +255,7 @@ try {
     <div class="tabs-menu">
         <button class="tab-btn ativo" onclick="openTab('caixa',this)"><i class="fas fa-wallet"></i> Caixa</button>
         <button class="tab-btn" onclick="openTab('leads',this)"><i class="fas fa-ticket-alt"></i> Indicações VIP</button>
-        <button class="tab-btn" onclick="openTab('equipe',this)"><i class="fas fa-users"></i> Equipa &amp; Alunos</button>
+        <button class="tab-btn" onclick="openTab('equipe',this)"><i class="fas fa-users"></i> Usuários &amp; Acesso</button>
         <button class="tab-btn" onclick="openTab('alunos',this)"><i class="fas fa-id-badge"></i> Alunos</button>
         <button class="tab-btn" onclick="openTab('horarios',this)"><i class="fas fa-clock"></i> Horários</button>
         <button class="tab-btn" onclick="openTab('planos',this)"><i class="fas fa-tags"></i> Planos</button>
@@ -333,15 +359,19 @@ try {
     <!-- EQUIPE -->
     <div id="equipe" class="tab-content">
         <div class="card">
-            <h3 class="card-titulo"><i class="fas fa-user-plus"></i> Novo Cadastro</h3>
+            <h3 class="card-titulo"><i class="fas fa-user-plus"></i> Criar Novo Usuário</h3>
+            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Defina o login, senha e permissão de acesso do novo usuário.</p>
             <form method="POST" id="formAddUsuario">
                 <input type="hidden" name="acao" value="add_usuario">
                 <input type="text" name="nome" placeholder="Nome Completo" required>
-                <input type="email" name="email" placeholder="E-mail / Login" required>
-                <input type="text" name="telefone" placeholder="WhatsApp">
-                <input type="password" name="senha" placeholder="Senha de Acesso" required>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-envelope"></i> Login / E-mail</label>
+                <input type="email" name="email" placeholder="E-mail ou login de acesso" required>
+                <input type="text" name="telefone" placeholder="WhatsApp (Opcional)">
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-lock"></i> Senha de Acesso</label>
+                <input type="password" name="senha" placeholder="Senha" required>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-shield-alt"></i> Nível de Permissão</label>
                 <select name="tipo" required id="tipoSelect" onchange="toggleTurmaField()">
-                    <option value="" disabled selected>Nível de Acesso</option>
+                    <option value="" disabled selected>Selecione a permissão...</option>
                     <option value="aluno">Aluno(a)</option>
                     <option value="professor">Professor(a)</option>
                     <option value="treinador">Treinador(a)</option>
@@ -356,7 +386,7 @@ try {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <button type="submit" class="btn-submit">Cadastrar</button>
+                <button type="submit" class="btn-submit"><i class="fas fa-user-plus"></i> Criar Usuário</button>
             </form>
         </div>
         <div class="card">
@@ -377,11 +407,34 @@ try {
                                 <?= nl2br(e($u['restricoes_medicas'])) ?>
                             </div>
                         <?php endif; ?>
-                        <div style="margin-top:10px;text-align:right">
+                        <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+                            <button type="button" class="btn-editar" onclick="toggleEditUsuario(<?= (int)$u['id'] ?>)"><i class="fas fa-key"></i> Editar Acesso</button>
                             <form method="POST" onsubmit="return confirm('Excluir este usuário?')">
                                 <input type="hidden" name="acao" value="excluir_usuario">
                                 <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                                 <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i> Excluir</button>
+                            </form>
+                        </div>
+                        <div id="editUsuario<?= (int)$u['id'] ?>" class="edit-inline" style="display:none">
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="editar_usuario">
+                                <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-envelope"></i> Login / E-mail</label>
+                                <input type="email" name="email" value="<?= e($u['email']) ?>" placeholder="Login ou E-mail" required>
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-shield-alt"></i> Nível de Permissão</label>
+                                <select name="tipo" required>
+                                    <option value="aluno"      <?= $u['tipo'] === 'aluno'      ? 'selected' : '' ?>>Aluno(a)</option>
+                                    <option value="professor"  <?= $u['tipo'] === 'professor'  ? 'selected' : '' ?>>Professor(a)</option>
+                                    <option value="treinador"  <?= $u['tipo'] === 'treinador'  ? 'selected' : '' ?>>Treinador(a)</option>
+                                    <option value="instrutor"  <?= $u['tipo'] === 'instrutor'  ? 'selected' : '' ?>>Instrutor(a)</option>
+                                    <option value="admin"      <?= $u['tipo'] === 'admin'      ? 'selected' : '' ?>>Administrador(a)</option>
+                                </select>
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-lock"></i> Nova Senha <span style="color:#888">(deixe em branco para não alterar)</span></label>
+                                <input type="password" name="nova_senha" placeholder="Nova senha (opcional)">
+                                <div style="display:flex;gap:10px">
+                                    <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                    <button type="button" onclick="toggleEditUsuario(<?= (int)$u['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -575,6 +628,10 @@ function openTab(tabName, btn) {
     document.getElementById(tabName).style.display = 'block';
     document.getElementById(tabName).classList.add('ativo');
     btn.classList.add('ativo');
+}
+function toggleEditUsuario(id) {
+    var el = document.getElementById('editUsuario' + id);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
 function toggleEditPlano(id) {
     var el = document.getElementById('editPlano' + id);
