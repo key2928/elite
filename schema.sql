@@ -267,7 +267,16 @@ CREATE TABLE IF NOT EXISTS `brindes` (
 INSERT IGNORE INTO `brindes` (`nome`,`descricao`) VALUES
 ('Garrafa Elite','Garrafa personalizada Elite Thai Girls'),
 ('Camiseta Elite','Camiseta oficial da academia'),
-('Luva Elite','Luva de treino personalizada');
+('Luva Elite','Luva de treino personalizada'),
+('Bermuda Elite','Bermuda oficial da academia Elite Thai'),
+('Bandagem de Boxe','Bandagem de proteção para as mãos — 3 metros'),
+('Protetor Bucal','Protetor bucal profissional para treinos'),
+('Caneleira Elite','Caneleira de treino personalizada Elite Thai'),
+('Mochila Elite','Mochila esportiva personalizada Elite Thai Girls'),
+('Aula Particular Gratuita','Uma aula particular gratuita com o seu treinador'),
+('Desconto 20% na Mensalidade','20% de desconto na próxima renovação do plano'),
+('Kit Higiene do Atleta','Kit com toalha e desodorante esportivo da academia'),
+('Corda de Pular Elite','Corda de pular profissional para treinos de condicionamento');
 
 CREATE TABLE IF NOT EXISTS `brindes_aluna` (
     `id`              INT(11) NOT NULL AUTO_INCREMENT,
