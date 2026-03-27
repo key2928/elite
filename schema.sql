@@ -254,3 +254,42 @@ ALTER TABLE `pagamentos`
 -- Migração: popular turma_professores a partir do professor_id legado em turmas
 INSERT IGNORE INTO `turma_professores` (`turma_id`, `professor_id`)
 SELECT `id`, `professor_id` FROM `turmas` WHERE `professor_id` IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS `brindes` (
+    `id`          INT(11) NOT NULL AUTO_INCREMENT,
+    `nome`        VARCHAR(150) NOT NULL,
+    `descricao`   TEXT DEFAULT NULL,
+    `ativo`       TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `brindes` (`nome`,`descricao`) VALUES
+('Garrafa Elite','Garrafa personalizada Elite Thai Girls'),
+('Camiseta Elite','Camiseta oficial da academia'),
+('Luva Elite','Luva de treino personalizada')
+ON DUPLICATE KEY UPDATE nome=nome;
+
+CREATE TABLE IF NOT EXISTS `brindes_aluna` (
+    `id`              INT(11) NOT NULL AUTO_INCREMENT,
+    `aluna_id`        INT(11) NOT NULL,
+    `brinde_id`       INT(11) DEFAULT NULL,
+    `brinde_manual`   VARCHAR(200) DEFAULT NULL,
+    `mes_referencia`  VARCHAR(7) NOT NULL,
+    `roleta_girada`   TINYINT(1) NOT NULL DEFAULT 0,
+    `entregue`        TINYINT(1) NOT NULL DEFAULT 0,
+    `data_entrega`    DATETIME DEFAULT NULL,
+    `instrutor_id`    INT(11) DEFAULT NULL,
+    `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_aluna_mes` (`aluna_id`,`mes_referencia`),
+    KEY `fk_ba_aluna`    (`aluna_id`),
+    KEY `fk_ba_brinde`   (`brinde_id`),
+    KEY `fk_ba_instrutor`(`instrutor_id`),
+    CONSTRAINT `fk_ba_aluna`     FOREIGN KEY (`aluna_id`)    REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ba_brinde`    FOREIGN KEY (`brinde_id`)   REFERENCES `brindes`  (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_ba_instrutor` FOREIGN KEY (`instrutor_id`)REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Migração: brindes e brindes_aluna (execute em bancos existentes)
+-- (tables created above with IF NOT EXISTS — safe to re-run)

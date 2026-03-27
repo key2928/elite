@@ -141,11 +141,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $duracao = $stmt->fetchColumn();
         if ($duracao) {
             $vencimento = date('Y-m-d', strtotime("+{$duracao} months"));
-            $perc = min(100, max(0, (float)($_POST['percentual_academia'] ?? 50)));
-            $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, forma_pagamento, percentual_academia) VALUES (?,?,?,?,?,?,?,?,?)")
-                ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $_POST['forma_pagamento'] ?? 'pix', $perc]);
+            $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, forma_pagamento) VALUES (?,?,?,?,?,?,?,?)")
+                ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $_POST['forma_pagamento'] ?? 'pix']);
             $msg_sucesso = 'Pagamento registado com sucesso!';
         }
+    }
+
+    // 13. Adicionar Brinde (Admin)
+    if ($acao === 'add_brinde_admin') {
+        $nome = trim($_POST['nome_brinde'] ?? '');
+        if ($nome !== '') {
+            $pdo->prepare("INSERT INTO brindes (nome, descricao) VALUES (?,?)")
+                ->execute([$nome, trim($_POST['desc_brinde'] ?? '')]);
+            $msg_sucesso = 'Brinde adicionado!';
+        }
+    }
+
+    // 14. Desativar Brinde (Admin)
+    if ($acao === 'desativar_brinde_admin') {
+        $pdo->prepare("UPDATE brindes SET ativo=0 WHERE id=?")->execute([(int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Brinde removido.';
+    }
+
+    // 15. Entregar Brinde (Admin)
+    if ($acao === 'entregar_brinde_admin') {
+        $pdo->prepare("UPDATE brindes_aluna SET entregue=1, data_entrega=NOW() WHERE id=?")
+            ->execute([(int)($_POST['ba_id'] ?? 0)]);
+        $msg_sucesso = 'Brinde marcado como entregue!';
     }
 }
 
@@ -156,10 +178,6 @@ $ano_atual = date('Y');
 $stmt = $pdo->prepare("SELECT SUM(valor_pago) FROM pagamentos WHERE MONTH(data_pagamento) = ? AND YEAR(data_pagamento) = ?");
 $stmt->execute([$mes_atual, $ano_atual]);
 $total_caixa = $stmt->fetchColumn() ?: 0;
-
-$stmt2 = $pdo->prepare("SELECT SUM(valor_pago * percentual_academia / 100) FROM pagamentos WHERE MONTH(data_pagamento) = ? AND YEAR(data_pagamento) = ?");
-$stmt2->execute([$mes_atual, $ano_atual]);
-$repasse_academia = $stmt2->fetchColumn() ?: 0;
 
 $pagamentos  = $pdo->query("SELECT p.*, u.nome as aluna_nome, pl.nome_plano, t.nome as treinador_nome FROM pagamentos p JOIN usuarios u ON p.aluna_id = u.id JOIN planos_tabela pl ON p.plano_id = pl.id LEFT JOIN usuarios t ON p.treinador_id = t.id ORDER BY p.data_pagamento DESC LIMIT 50")->fetchAll();
 $usuarios    = $pdo->query("SELECT * FROM usuarios ORDER BY tipo, nome")->fetchAll();
@@ -190,6 +208,9 @@ $leads = [];
 try {
     $leads = $pdo->query("SELECT l.*, u.nome as quem_indicou FROM leads_indicacoes l JOIN usuarios u ON l.aluna_id_indicou = u.id ORDER BY l.data_indicacao DESC")->fetchAll();
 } catch (Exception $e) {}
+
+$brindes_admin = [];
+try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY nome")->fetchAll(); } catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -248,9 +269,6 @@ try {
         .alerta-saude{background:rgba(214,43,197,.1);border-left:3px solid #d62bc5;padding:10px;border-radius:8px;font-size:12px;color:#fff;margin-top:10px;line-height:1.5}
         .status-novo{color:#f1c40f}.status-contatado{color:#3498db}.status-matriculado{color:#2ecc71}
         .edit-inline{display:none;background:#050308;padding:15px;border-radius:12px;border:1px solid #f1c40f;margin-top:10px}
-        .repasse-box{background:rgba(52,152,219,.1);border:1px solid #3498db;border-radius:12px;padding:15px;margin-bottom:20px}
-        .repasse-label{font-size:12px;color:#3498db;text-transform:uppercase;font-weight:800;letter-spacing:1px}
-        .repasse-valor{font-size:28px;font-weight:800;color:#3498db}
     </style>
 </head>
 <body>
@@ -272,6 +290,7 @@ try {
         <button class="tab-btn" onclick="openTab('horarios',this)"><i class="fas fa-clock"></i> Horários</button>
         <button class="tab-btn" onclick="openTab('planos',this)"><i class="fas fa-tags"></i> Planos</button>
         <button class="tab-btn" onclick="openTab('mural',this)"><i class="fas fa-bullhorn"></i> Mural</button>
+        <button class="tab-btn" onclick="openTab('brindes',this)"><i class="fas fa-gift"></i> Brindes</button>
     </div>
 
     <!-- CAIXA -->
@@ -280,11 +299,6 @@ try {
             <h3 class="card-titulo" style="color:#2ecc71"><i class="fas fa-chart-line" style="color:#2ecc71"></i> Receita do Mês</h3>
             <div style="font-size:36px;font-weight:800">R$ <?= number_format($total_caixa, 2, ',', '.') ?></div>
             <p style="font-size:12px;color:var(--cinza);margin:5px 0 0">Entradas em <?= date('m/Y') ?></p>
-        </div>
-        <div class="repasse-box">
-            <div class="repasse-label"><i class="fas fa-university"></i> Repasse Academia</div>
-            <div class="repasse-valor">R$ <?= number_format($repasse_academia, 2, ',', '.') ?></div>
-            <p style="font-size:11px;color:#3498db;margin:4px 0 0">Soma de (valor × % academia) dos pagamentos de <?= date('m/Y') ?></p>
         </div>
 
         <!-- Formulário de pagamento -->
@@ -311,8 +325,6 @@ try {
                     <option value="debito">💳 Cartão de Débito</option>
                     <option value="dinheiro">💵 Dinheiro</option>
                 </select>
-                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px">% que vai para academia</label>
-                <input type="number" step="0.01" min="0" max="100" name="percentual_academia" value="50" required>
                 <textarea name="obs" rows="2" placeholder="Observações (Opcional)"></textarea>
                 <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Registar</button>
             </form>
@@ -331,9 +343,7 @@ try {
                         <div style="font-size:12px;color:var(--cinza)">
                             <i class="fas fa-tag"></i> <?= e($pag['nome_plano']) ?> |
                             <i class="fas fa-calendar-check"></i> Vence: <?= date('d/m/Y', strtotime($pag['data_vencimento'])) ?> |
-                            <i class="fas fa-credit-card"></i> <?= e($fp_labels[$pag['forma_pagamento'] ?? 'pix']) ?> |
-                            <i class="fas fa-university"></i> Academia: <?= number_format($pag['percentual_academia'] ?? 50, 1) ?>%
-                            (R$ <?= number_format($pag['valor_pago'] * ($pag['percentual_academia'] ?? 50) / 100, 2, ',', '.') ?>)
+                            <i class="fas fa-credit-card"></i> <?= e($fp_labels[$pag['forma_pagamento'] ?? 'pix']) ?>
                             <?php if (!empty($pag['treinador_nome'])): ?>
                                 | <i class="fas fa-user-tie"></i> <?= e($pag['treinador_nome']) ?>
                             <?php endif; ?>
@@ -635,6 +645,74 @@ try {
                 </select>
                 <button type="submit" class="btn-submit">Publicar</button>
             </form>
+        </div>
+    </div>
+
+    <!-- BRINDES -->
+    <div id="brindes" class="tab-content">
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-gift"></i> Gerir Brindes</h3>
+            <form method="POST" style="margin-bottom:20px">
+                <input type="hidden" name="acao" value="add_brinde_admin">
+                <input type="text" name="nome_brinde" placeholder="Nome do brinde" required>
+                <textarea name="desc_brinde" rows="2" placeholder="Descrição (opcional)"></textarea>
+                <button type="submit" class="btn-submit"><i class="fas fa-plus"></i> Adicionar Brinde</button>
+            </form>
+            <?php foreach (($brindes_admin ?? []) as $br): ?>
+                <div class="item-lista item-topo">
+                    <div>
+                        <span class="item-nome">🎁 <?= e($br['nome']) ?></span>
+                        <?php if (!empty($br['descricao'])): ?>
+                            <br><span style="font-size:12px;color:var(--cinza)"><?= e($br['descricao']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <form method="POST">
+                        <input type="hidden" name="acao" value="desativar_brinde_admin">
+                        <input type="hidden" name="id" value="<?= (int)$br['id'] ?>">
+                        <button type="submit" class="btn-excluir"><i class="fas fa-times"></i></button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-box-open"></i> Brindes Ganhos — Entregas Pendentes</h3>
+            <?php
+            $brindes_ganhos_admin = [];
+            try {
+                $brindes_ganhos_admin = $pdo->query("SELECT ba.*, u.nome as aluna_nome, b.nome as brinde_nome FROM brindes_aluna ba JOIN usuarios u ON ba.aluna_id=u.id LEFT JOIN brindes b ON ba.brinde_id=b.id ORDER BY ba.entregue ASC, ba.created_at DESC")->fetchAll();
+            } catch (Exception $e) {}
+            ?>
+            <?php if (empty($brindes_ganhos_admin)): ?>
+                <p style="font-size:13px;color:var(--cinza);text-align:center">Nenhum brinde registado.</p>
+            <?php else: ?>
+                <?php foreach ($brindes_ganhos_admin as $bg): ?>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <span class="item-nome"><?= e($bg['aluna_nome']) ?></span>
+                        <?php if ($bg['entregue']): ?>
+                            <span class="badge" style="background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71">✅ Entregue</span>
+                        <?php else: ?>
+                            <span class="badge" style="background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f">🎁 Pendente</span>
+                        <?php endif; ?>
+                    </div>
+                    <div style="font-size:12px;color:var(--cinza)">
+                        <?= e($bg['brinde_nome'] ?? $bg['brinde_manual'] ?? '—') ?> |
+                        <i class="fas fa-calendar-alt"></i> <?= e($bg['mes_referencia']) ?>
+                        <?php if ($bg['entregue'] && $bg['data_entrega']): ?>
+                            | Entregue em <?= date('d/m/Y', strtotime($bg['data_entrega'])) ?>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!$bg['entregue']): ?>
+                    <form method="POST" style="margin-top:8px">
+                        <input type="hidden" name="acao" value="entregar_brinde_admin">
+                        <input type="hidden" name="ba_id" value="<?= (int)$bg['id'] ?>">
+                        <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#11998e,#38ef7d);color:#000;font-size:12px;padding:10px;box-shadow:none"><i class="fas fa-box-open"></i> Marcar Entregue</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 
