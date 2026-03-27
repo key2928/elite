@@ -324,6 +324,38 @@ try {
         </div>
     </div>
 
+    <!-- Recompensas Disponíveis -->
+    <?php if (!empty($brindes_lista)): ?>
+    <div class="card" style="border-left:4px solid #f1c40f;background:linear-gradient(180deg,var(--card),rgba(241,196,15,.05))">
+        <h3 class="card-titulo" style="color:#f1c40f"><i class="fas fa-trophy" style="background:none;-webkit-text-fill-color:#f1c40f"></i> Recompensas Disponíveis</h3>
+        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:16px">Complete o mês sem faltar e gire a roleta para ganhar um desses prêmios exclusivos!</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+            <?php
+            $premios_icones = [
+                'garrafa'   => '🥤', 'camiseta' => '👕', 'luva'     => '🥊',
+                'bermuda'   => '🩳', 'bandagem' => '🖐️', 'protetor' => '🦷',
+                'caneleira' => '🦵', 'mochila'  => '🎒', 'aula'     => '🎓',
+                'desconto'  => '💸', 'kit'      => '🧴', 'corda'    => '🪢',
+            ];
+            foreach ($brindes_lista as $bl):
+                $nome_lower = mb_strtolower($bl['nome']);
+                $icone = '🎁';
+                foreach ($premios_icones as $chave => $emoji) {
+                    if (str_contains($nome_lower, $chave)) { $icone = $emoji; break; }
+                }
+            ?>
+            <div style="background:rgba(241,196,15,.06);border:1px solid rgba(241,196,15,.25);border-radius:14px;padding:14px 10px;text-align:center;transition:.3s">
+                <div style="font-size:28px;margin-bottom:8px"><?= $icone ?></div>
+                <div style="font-size:12px;font-weight:700;color:#f1c40f;line-height:1.3"><?= e($bl['nome']) ?></div>
+                <?php if ($bl['descricao']): ?>
+                    <div style="font-size:10px;color:var(--cinza);margin-top:4px;line-height:1.3"><?= e($bl['descricao']) ?></div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Passe Livre VIP -->
     <div class="card" style="border-color:#38ef7d;background:linear-gradient(180deg,var(--card),rgba(56,239,125,.05))">
         <h3 class="card-titulo" style="color:#38ef7d"><i class="fas fa-ticket-alt" style="background:none;-webkit-text-fill-color:#38ef7d"></i> Passe Livre VIP</h3>
@@ -598,6 +630,45 @@ try {
     </div>
     <?php endif; ?>
 
+    <!-- Regras da Academia -->
+    <div class="card" style="border-left:4px solid #d62bc5;background:linear-gradient(180deg,var(--card),rgba(214,43,197,.04))">
+        <div class="ficha-toggle" id="regras-toggle" onclick="toggleRegras()" role="button" tabindex="0" aria-expanded="false" aria-controls="regras-campos">
+            <h3 class="card-titulo" style="margin:0"><i class="fas fa-scroll" style="background:none;-webkit-text-fill-color:#d62bc5"></i> Regras da Academia</h3>
+            <div class="toggle-icon"><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="ficha-campos fechado" id="regras-campos">
+            <p style="font-size:12px;color:var(--cinza);margin:12px 0 18px;line-height:1.5">O Muay Thai é mais do que uma arte marcial — é um estilo de vida baseado em <strong style="color:#d62bc5">respeito</strong>, <strong style="color:#d62bc5">disciplina</strong> e <strong style="color:#d62bc5">comprometimento</strong>. Conheça as regras da Elite Thai Girls:</p>
+
+            <?php
+            $regras = [
+                ['icone' => '🙏', 'cor' => '#d62bc5', 'titulo' => 'Respeito', 'texto' => 'Respeite os treinadores, colegas e o espaço da academia. A saudação ao entrar e sair do tatame é obrigatória — ela simboliza gratidão e humildade, valores fundamentais do Muay Thai.'],
+                ['icone' => '⏰', 'cor' => '#f1c40f', 'titulo' => 'Pontualidade', 'texto' => 'Chegue com pelo menos 5 minutos de antecedência. O aquecimento é parte do treino e atrasos prejudicam a turma. Alunos que chegarem após o início da aula aguardarão a autorização do treinador.'],
+                ['icone' => '👕', 'cor' => '#3498db', 'titulo' => 'Uniforme e Equipamentos', 'texto' => 'Use sempre o uniforme adequado (shorts, camiseta e bandagem). Luvas, caneleiras e protetor bucal são obrigatórios nos sparrings. Equipamentos sujos ou danificados não serão permitidos no treino.'],
+                ['icone' => '🧼', 'cor' => '#2ecc71', 'titulo' => 'Higiene Pessoal', 'texto' => 'Mantenha as unhas aparadas para a segurança de todos. Treine sempre limpo(a) e use desodorante. Não use calçados no tatame. Traga sempre sua garrafinha de água — a hidratação é essencial!'],
+                ['icone' => '📵', 'cor' => '#7b2cbf', 'titulo' => 'Celular e Distrações', 'texto' => 'Deixe o celular no modo silencioso durante os treinos. O foco é fundamental para o aprendizado e para a segurança de todos. Fotos e vídeos só com autorização do treinador.'],
+                ['icone' => '🤜', 'cor' => '#FF8C00', 'titulo' => 'Conduta nos Sparrings', 'texto' => 'O sparring é um exercício técnico, não uma briga. Respeite o nível do parceiro, controle a força e pare imediatamente ao sinal de pausa. Nenhuma forma de agressividade fora do controle será tolerada.'],
+                ['icone' => '🏥', 'cor' => '#e74c3c', 'titulo' => 'Saúde e Lesões', 'texto' => 'Informe ao treinador qualquer lesão, dor ou condição de saúde antes do treino. Não treine se estiver doente — respeite o seu corpo e proteja seus colegas. Sua ficha médica deve estar sempre atualizada.'],
+                ['icone' => '💰', 'cor' => '#1abc9c', 'titulo' => 'Mensalidade em Dia', 'texto' => 'Mantenha sua mensalidade em dia para garantir o acesso contínuo aos treinos. Em caso de dificuldades, converse antecipadamente com a gestão da academia.'],
+                ['icone' => '🌟', 'cor' => '#d62bc5', 'titulo' => 'Espírito Elite', 'texto' => 'Incentive seus colegas, celebre as conquistas de todos e lembre-se: aqui somos uma família. O Muay Thai nos une. Leve os valores aprendidos aqui para a sua vida fora da academia!'],
+            ];
+            foreach ($regras as $r): ?>
+            <div style="display:flex;gap:14px;align-items:flex-start;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);margin-bottom:10px">
+                <div style="font-size:26px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0"><?= $r['icone'] ?></div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:800;font-size:13px;color:<?= $r['cor'] ?>;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px"><?= $r['titulo'] ?></div>
+                    <div style="font-size:12px;color:var(--cinza);line-height:1.6"><?= $r['texto'] ?></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+
+            <div style="background:rgba(214,43,197,.08);border:1px dashed #d62bc5;border-radius:14px;padding:16px;text-align:center;margin-top:6px">
+                <div style="font-size:22px;margin-bottom:8px">🥊</div>
+                <div style="font-size:13px;font-weight:800;color:#d62bc5;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Elite Thai Girls</div>
+                <div style="font-size:12px;color:var(--cinza);line-height:1.5">Força · Respeito · Disciplina · Família</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Comunidade -->
     <div class="card">
         <h3 class="card-titulo"><i class="fas fa-users"></i> Comunidade Elite</h3>
@@ -734,6 +805,31 @@ function toggleFicha() {
 <?php if ($msg_ficha): ?>
 document.addEventListener('DOMContentLoaded', function(){ toggleFicha(); });
 <?php endif; ?>
+
+// ---- Regras da Academia toggle ----
+function toggleRegras() {
+    var campos  = document.getElementById('regras-campos');
+    var toggle  = document.getElementById('regras-toggle');
+    var aberto  = !campos.classList.contains('fechado');
+    if (aberto) {
+        campos.style.maxHeight = campos.scrollHeight + 'px';
+        requestAnimationFrame(function(){
+            campos.style.maxHeight = '0';
+            campos.classList.add('fechado');
+            toggle.classList.remove('aberto');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    } else {
+        campos.classList.remove('fechado');
+        campos.style.maxHeight = campos.scrollHeight + 'px';
+        toggle.classList.add('aberto');
+        toggle.setAttribute('aria-expanded', 'true');
+        campos.addEventListener('transitionend', function handler() {
+            campos.style.maxHeight = 'none';
+            campos.removeEventListener('transitionend', handler);
+        });
+    }
+}
 
 // ---- PWA Install banner ----
 var pwaPrompt = null;
