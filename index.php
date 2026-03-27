@@ -11,8 +11,17 @@ $id = (int) $_SESSION['usuario_id'];
 try {
     // Atualizar ficha de saúde
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'atualizar_ficha') {
-        $restricoes = trim($_POST['restricoes'] ?? '');
-        $pdo->prepare("UPDATE usuarios SET restricoes_medicas = ? WHERE id = ?")->execute([$restricoes, $id]);
+        $pdo->prepare("UPDATE usuarios SET restricoes_medicas=?, data_nascimento=?, tipo_sanguineo=?, peso=?, altura=?, doencas_cronicas=?, medicamentos_uso=?, historico_lesoes=?, emergencia_nome=?, emergencia_telefone=?, objetivo_treino=?, nivel_experiencia=? WHERE id=?")
+            ->execute([
+                trim($_POST['restricoes'] ?? ''),
+                ($_POST['data_nascimento'] ?: null), ($_POST['tipo_sanguineo'] ?: null),
+                ($_POST['peso'] ?: null), ($_POST['altura'] ?: null),
+                ($_POST['doencas_cronicas'] ?: null), ($_POST['medicamentos_uso'] ?: null),
+                ($_POST['historico_lesoes'] ?: null), ($_POST['emergencia_nome'] ?: null),
+                ($_POST['emergencia_telefone'] ?: null), ($_POST['objetivo_treino'] ?: null),
+                ($_POST['nivel_experiencia'] ?: 'iniciante'),
+                $id,
+            ]);
         $msg_ficha = 'Ficha de saúde atualizada com sucesso!';
     }
 
@@ -48,7 +57,7 @@ try {
     $stmt->execute([$id]);
     $plano = $stmt->fetch();
 
-    $stmt = $pdo->prepare("SELECT p.data_pagamento, p.valor_pago, pl.nome_plano FROM pagamentos p JOIN planos_tabela pl ON p.plano_id = pl.id WHERE p.aluna_id = ? ORDER BY p.data_pagamento DESC LIMIT 3");
+    $stmt = $pdo->prepare("SELECT p.data_pagamento, p.valor_pago, p.data_vencimento, p.forma_pagamento, pl.nome_plano, u.nome as treinador_nome FROM pagamentos p JOIN planos_tabela pl ON p.plano_id = pl.id LEFT JOIN usuarios u ON p.treinador_id = u.id WHERE p.aluna_id = ? ORDER BY p.data_pagamento DESC LIMIT 6");
     $stmt->execute([$id]);
     $historico_pag = $stmt->fetchAll();
 
@@ -170,7 +179,52 @@ try {
         <?php endif; ?>
         <form method="POST">
             <input type="hidden" name="acao" value="atualizar_ficha">
-            <textarea name="restricoes" class="ficha-textarea" rows="3" placeholder="Ex: Sinto dor lombar, asma leve..."><?= e($aluna['restricoes_medicas'] ?? '') ?></textarea>
+            <div style="display:flex;gap:10px;margin-bottom:12px">
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Data de Nascimento</label>
+                    <input type="date" name="data_nascimento" value="<?= e($aluna['data_nascimento'] ?? '') ?>" style="margin-bottom:0">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Tipo Sanguíneo</label>
+                    <select name="tipo_sanguineo" style="margin-bottom:0">
+                        <option value="">Selecione</option>
+                        <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $ts): ?>
+                            <option value="<?= $ts ?>" <?= ($aluna['tipo_sanguineo'] ?? '') === $ts ? 'selected' : '' ?>><?= $ts ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:12px">
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Peso (kg)</label>
+                    <input type="number" step="0.1" name="peso" value="<?= e($aluna['peso'] ?? '') ?>" placeholder="Ex: 65.5" style="margin-bottom:0">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Altura (cm)</label>
+                    <input type="number" step="0.1" name="altura" value="<?= e($aluna['altura'] ?? '') ?>" placeholder="Ex: 168" style="margin-bottom:0">
+                </div>
+            </div>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Nível de Experiência</label>
+            <select name="nivel_experiencia">
+                <option value="iniciante"     <?= ($aluna['nivel_experiencia'] ?? 'iniciante') === 'iniciante'     ? 'selected' : '' ?>>Iniciante</option>
+                <option value="intermediario" <?= ($aluna['nivel_experiencia'] ?? '') === 'intermediario' ? 'selected' : '' ?>>Intermediário</option>
+                <option value="avancado"      <?= ($aluna['nivel_experiencia'] ?? '') === 'avancado'      ? 'selected' : '' ?>>Avançado</option>
+            </select>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Objetivo do Treino</label>
+            <textarea name="objetivo_treino" class="ficha-textarea" rows="2" placeholder="Ex: Perda de peso, competição, autodefesa..."><?= e($aluna['objetivo_treino'] ?? '') ?></textarea>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Restrições Médicas</label>
+            <textarea name="restricoes" class="ficha-textarea" rows="2" placeholder="Ex: Sinto dor lombar, asma leve..."><?= e($aluna['restricoes_medicas'] ?? '') ?></textarea>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Doenças Crônicas</label>
+            <textarea name="doencas_cronicas" class="ficha-textarea" rows="2" placeholder="Ex: Hipertensão, diabetes..."><?= e($aluna['doencas_cronicas'] ?? '') ?></textarea>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Medicamentos em Uso</label>
+            <textarea name="medicamentos_uso" class="ficha-textarea" rows="2" placeholder="Ex: Losartana, metformina..."><?= e($aluna['medicamentos_uso'] ?? '') ?></textarea>
+            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Histórico de Lesões</label>
+            <textarea name="historico_lesoes" class="ficha-textarea" rows="2" placeholder="Ex: Fratura no tornozelo em 2022..."><?= e($aluna['historico_lesoes'] ?? '') ?></textarea>
+            <div style="font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--borda)"><i class="fas fa-phone-alt"></i> Contato de Emergência</div>
+            <div style="display:flex;gap:10px">
+                <input type="text" name="emergencia_nome" value="<?= e($aluna['emergencia_nome'] ?? '') ?>" placeholder="Nome do Contato" style="flex:1;margin-bottom:12px">
+                <input type="text" name="emergencia_telefone" value="<?= e($aluna['emergencia_telefone'] ?? '') ?>" placeholder="Telefone" style="flex:1;margin-bottom:12px">
+            </div>
             <button type="submit" class="btn-salvar"><i class="fas fa-save"></i> Atualizar Ficha</button>
         </form>
     </div>
@@ -311,11 +365,21 @@ try {
             </div>
         <?php endif; ?>
 
-        <h4 style="font-size:14px;margin:15px 0 10px;text-transform:uppercase">Últimos Recibos</h4>
+        <h4 style="font-size:14px;margin:15px 0 10px;text-transform:uppercase">Histórico de Renovações</h4>
+        <?php $fp_labels = ['pix'=>'PIX','credito'=>'Cartão Crédito','debito'=>'Cartão Débito','dinheiro'=>'Dinheiro']; ?>
         <div style="background:#050308;padding:0 15px;border-radius:12px;border:1px solid var(--borda)">
             <?php foreach ($historico_pag as $hp): ?>
                 <div class="hist-item">
-                    <span><i class="fas fa-file-invoice" style="margin-right:10px;color:#d62bc5"></i> <?= date('d/m/Y', strtotime($hp['data_pagamento'])) ?></span>
+                    <div>
+                        <div style="color:#fff;font-weight:700;font-size:13px"><?= e($hp['nome_plano']) ?></div>
+                        <div><i class="fas fa-calendar-alt" style="margin-right:4px;color:#d62bc5"></i> <?= date('d/m/Y', strtotime($hp['data_pagamento'])) ?> → Vence: <?= date('d/m/Y', strtotime($hp['data_vencimento'])) ?></div>
+                        <div style="margin-top:3px">
+                            <span style="background:rgba(214,43,197,.15);color:#d62bc5;border:1px solid #d62bc5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800"><?= e($fp_labels[$hp['forma_pagamento'] ?? 'pix']) ?></span>
+                            <?php if (!empty($hp['treinador_nome'])): ?>
+                                <span style="font-size:11px;color:#888;margin-left:6px"><i class="fas fa-user-tie"></i> <?= e($hp['treinador_nome']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                     <span style="color:#2ecc71;font-weight:800">R$ <?= number_format($hp['valor_pago'], 2, ',', '.') ?></span>
                 </div>
             <?php endforeach; ?>
