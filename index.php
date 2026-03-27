@@ -197,7 +197,7 @@ try {
         <div class="dias-semana">
             <?php if (count($grade_horarios) > 0): ?>
                 <?php foreach ($grade_horarios as $hr): ?>
-                    <div class="dia ativo"><?= strtoupper(mb_substr($hr['dia_semana'], 0, 1)) ?></div>
+                    <div class="dia ativo"><?= mb_strtoupper(mb_substr($hr['dia_semana'], 0, 1, 'UTF-8'), 'UTF-8') ?></div>
                 <?php endforeach; ?>
             <?php else: ?>
                 <p style="font-size:12px;color:#555">Sem treinos configurados.</p>
