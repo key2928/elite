@@ -78,30 +78,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $mes = substr($data_aula, 0, 7);
+        $hoje = date('Y-m-d');
+        // Fetch turma schedule once, outside the per-student loop
+        $stmtHor = $pdo->prepare("SELECT h.dia_semana FROM horarios_treino h JOIN turmas t ON t.horario_id = h.id WHERE t.id = ?");
+        $stmtHor->execute([$turma_id]);
+        $hor = $stmtHor->fetch();
+        $dias_passados = [];
+        $ultimo_dia = date('Y-m-t', strtotime($mes.'-01'));
+        if ($hor) {
+            $dias_treino = calcularDiasTreinados($mes, $hor['dia_semana']);
+            $dias_passados = array_values(array_filter($dias_treino, fn($d) => $d <= $hoje));
+        }
+
         foreach ($presentes as $aid) {
             if (!in_array($aid, $ids_turma, true)) continue;
-            $stmtHor = $pdo->prepare("SELECT h.dia_semana FROM horarios_treino h JOIN turmas t ON t.horario_id = h.id WHERE t.id = ?");
-            $stmtHor->execute([$turma_id]);
-            $hor = $stmtHor->fetch();
-            if ($hor) {
-                $dias_treino = calcularDiasTreinados($mes, $hor['dia_semana']);
-                $hoje = date('Y-m-d');
-                $dias_passados = array_filter($dias_treino, fn($d) => $d <= $hoje);
-                if (count($dias_passados) > 0) {
-                    $ph = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca LIKE ? AND presente=0");
-                    $ph->execute([$aid, $mes.'%']);
-                    $faltas = (int)$ph->fetchColumn();
-                    $pp = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca IN (".implode(',',array_fill(0,count($dias_passados),'?')).") AND presente=1");
-                    $pp->execute(array_merge([$aid], array_values($dias_passados)));
-                    $presencas_ok = (int)$pp->fetchColumn();
-                    $ultimo_dia = date('Y-m-t', strtotime($mes.'-01'));
-                    if ($faltas === 0 && $presencas_ok === count($dias_passados) && $hoje >= $ultimo_dia) {
-                        $chk = $pdo->prepare("SELECT id FROM brindes_aluna WHERE aluna_id=? AND mes_referencia=?");
-                        $chk->execute([$aid, $mes]);
-                        if (!$chk->fetch()) {
-                            $pdo->prepare("INSERT INTO brindes_aluna (aluna_id, mes_referencia, instrutor_id) VALUES (?,?,?)")
-                                ->execute([$aid, $mes, $prof_id]);
-                        }
+            if ($hor && count($dias_passados) > 0) {
+                $ph = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca LIKE ? AND presente=0");
+                $ph->execute([$aid, $mes.'%']);
+                $faltas = (int)$ph->fetchColumn();
+                $pp = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca IN (".implode(',',array_fill(0,count($dias_passados),'?')).") AND presente=1");
+                $pp->execute(array_merge([$aid], $dias_passados));
+                $presencas_ok = (int)$pp->fetchColumn();
+                if ($faltas === 0 && $presencas_ok === count($dias_passados) && $hoje >= $ultimo_dia) {
+                    $chk = $pdo->prepare("SELECT id FROM brindes_aluna WHERE aluna_id=? AND mes_referencia=?");
+                    $chk->execute([$aid, $mes]);
+                    if (!$chk->fetch()) {
+                        $pdo->prepare("INSERT INTO brindes_aluna (aluna_id, mes_referencia, instrutor_id) VALUES (?,?,?)")
+                            ->execute([$aid, $mes, $prof_id]);
                     }
                 }
             }
@@ -304,7 +307,7 @@ try {
         $args = array_merge($aluno_ids_all, [date('Y-m-d')]);
         $stmtPH = $pdo->prepare("SELECT aluno_id FROM presencas WHERE aluno_id IN ($in2) AND data_presenca=? AND presente=1");
         $stmtPH->execute($args);
-        $presencas_hoje = $stmtPH->fetchAll(PDO::FETCH_COLUMN);
+        $presencas_hoje = array_map('intval', $stmtPH->fetchAll(PDO::FETCH_COLUMN));
     }
 } catch (Exception $e) {}
 ?>
@@ -392,7 +395,7 @@ try {
                 <div style="font-size:12px;color:var(--cinza);margin-bottom:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px"><i class="fas fa-users"></i> Alunos da Turma</div>
                 <?php foreach ($alunas as $a): ?>
                 <label id="la-<?= (int)$a['id'] ?>" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.02);border:1px solid var(--borda);padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;transition:.3s" class="aluno-check-row" data-aluno-id="<?= (int)$a['id'] ?>">
-                    <input type="checkbox" name="presentes[]" value="<?= (int)$a['id'] ?>" style="width:18px;height:18px;margin:0;accent-color:#2ecc71" <?= in_array((int)$a['id'], array_map('intval', $presencas_hoje)) ? 'checked' : '' ?>>
+                    <input type="checkbox" name="presentes[]" value="<?= (int)$a['id'] ?>" style="width:18px;height:18px;margin:0;accent-color:#2ecc71" <?= in_array((int)$a['id'], $presencas_hoje) ? 'checked' : '' ?>>
                     <span style="flex:1;font-weight:600;font-size:14px"><?= e($a['nome']) ?></span>
                     <span style="font-size:11px;color:var(--cinza)"><?= e($a['turmas_nomes'] ?? '') ?></span>
                 </label>
