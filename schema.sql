@@ -1,5 +1,5 @@
 -- ============================================================
--- ELITE THAI / KONEX - Schema Completo do Banco de Dados
+-- ELITE GIRLS / KONEX - Schema Completo do Banco de Dados
 -- Senha do Admin Master: konex2026 | Login: konex
 -- ============================================================
 
@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `pagamentos` (
     `data_pagamento`    DATE NOT NULL,
     `data_vencimento`   DATE NOT NULL,
     `observacao_aluna`  TEXT DEFAULT NULL,
+    `percentual_academia` DECIMAL(5,2) NOT NULL DEFAULT 50.00,
     PRIMARY KEY (`id`),
     KEY `fk_pag_aluna`     (`aluna_id`),
     KEY `fk_pag_plano`     (`plano_id`),
@@ -153,4 +154,52 @@ CREATE TABLE IF NOT EXISTS `conquistas` (
     KEY `fk_conq_treinador` (`treinador_id`),
     CONSTRAINT `fk_conq_aluna`     FOREIGN KEY (`aluna_id`)     REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_conq_treinador` FOREIGN KEY (`treinador_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABELA: turmas (Turmas com professor e horário)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `turmas` (
+    `id`           INT(11) NOT NULL AUTO_INCREMENT,
+    `nome`         VARCHAR(100) NOT NULL,
+    `professor_id` INT(11) DEFAULT NULL,
+    `horario_id`   INT(11) DEFAULT NULL,
+    `ativo`        TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (`id`),
+    KEY `fk_turma_prof` (`professor_id`),
+    KEY `fk_turma_hor`  (`horario_id`),
+    CONSTRAINT `fk_turma_prof` FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_turma_hor`  FOREIGN KEY (`horario_id`)   REFERENCES `horarios_treino` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABELA: aluno_turmas (Alunos alocados em turmas)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `aluno_turmas` (
+    `id`       INT(11) NOT NULL AUTO_INCREMENT,
+    `aluno_id` INT(11) NOT NULL,
+    `turma_id` INT(11) NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_aluno_turma` (`aluno_id`, `turma_id`),
+    KEY `fk_at_aluno` (`aluno_id`),
+    KEY `fk_at_turma` (`turma_id`),
+    CONSTRAINT `fk_at_aluno` FOREIGN KEY (`aluno_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_at_turma` FOREIGN KEY (`turma_id`) REFERENCES `turmas`   (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABELA: presencas (Registo de presença diária)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `presencas` (
+    `id`            INT(11) NOT NULL AUTO_INCREMENT,
+    `aluno_id`      INT(11) NOT NULL,
+    `professor_id`  INT(11) DEFAULT NULL,
+    `data_presenca` DATE NOT NULL,
+    `presente`      TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_presenca_dia` (`aluno_id`, `data_presenca`),
+    KEY `fk_pres_aluno` (`aluno_id`),
+    KEY `fk_pres_prof`  (`professor_id`),
+    CONSTRAINT `fk_pres_aluno` FOREIGN KEY (`aluno_id`)     REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_pres_prof`  FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

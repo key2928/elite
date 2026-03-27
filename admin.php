@@ -18,6 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo) VALUES (?,?,?,?,?)")
                 ->execute([$_POST['nome'] ?? '', $_POST['email'] ?? '', $_POST['telefone'] ?? '', $senha_hash, $_POST['tipo'] ?? 'aluno']);
+            $novo_id = $pdo->lastInsertId();
+            if (!empty($_POST['turma_id']) && ($_POST['tipo'] ?? '') === 'aluno') {
+                $pdo->prepare("INSERT IGNORE INTO aluno_turmas (aluno_id, turma_id) VALUES (?,?)")
+                    ->execute([$novo_id, (int)$_POST['turma_id']]);
+            }
             $msg_sucesso = 'Usuário cadastrado com sucesso!';
         } catch (PDOException $e) {
             $msg_erro = 'Erro: Este e-mail já está cadastrado.';
@@ -37,45 +42,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Plano criado com sucesso!';
     }
 
-    // 4. Adicionar Horário
+    // 4. Editar Plano
+    if ($acao === 'editar_plano') {
+        $pdo->prepare("UPDATE planos_tabela SET nome_plano=?, valor=?, duracao_meses=? WHERE id=?")
+            ->execute([$_POST['nome_plano'] ?? '', $_POST['valor'] ?? 0, (int)($_POST['duracao_meses'] ?? 1), (int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Plano atualizado!';
+    }
+
+    // 5. Excluir Plano
+    if ($acao === 'excluir_plano') {
+        try {
+            $pdo->prepare("DELETE FROM planos_tabela WHERE id = ?")->execute([(int)($_POST['id'] ?? 0)]);
+            $msg_sucesso = 'Plano removido.';
+        } catch (PDOException $e) {
+            $msg_erro = 'Não é possível remover este plano — há pagamentos associados a ele.';
+        }
+    }
+
+    // 6. Adicionar Horário
     if ($acao === 'add_horario') {
         $pdo->prepare("INSERT INTO horarios_treino (dia_semana, horario, descricao) VALUES (?,?,?)")
             ->execute([$_POST['dia'] ?? '', $_POST['hora'] ?? '', $_POST['desc'] ?? '']);
         $msg_sucesso = 'Horário adicionado!';
     }
 
-    // 5. Excluir Horário
+    // 7. Excluir Horário
     if ($acao === 'excluir_horario') {
         $pdo->prepare("DELETE FROM horarios_treino WHERE id = ?")->execute([(int)($_POST['id'] ?? 0)]);
         $msg_sucesso = 'Horário removido.';
     }
 
-    // 6. Adicionar Aviso
+    // 8. Adicionar Turma
+    if ($acao === 'add_turma') {
+        $prof_id = !empty($_POST['professor_id']) ? (int)$_POST['professor_id'] : null;
+        $hor_id  = !empty($_POST['horario_id'])   ? (int)$_POST['horario_id']   : null;
+        $pdo->prepare("INSERT INTO turmas (nome, professor_id, horario_id) VALUES (?,?,?)")
+            ->execute([$_POST['nome'] ?? '', $prof_id, $hor_id]);
+        $msg_sucesso = 'Turma criada com sucesso!';
+    }
+
+    // 9. Excluir Turma
+    if ($acao === 'excluir_turma') {
+        $pdo->prepare("DELETE FROM turmas WHERE id = ?")->execute([(int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Turma removida.';
+    }
+
+    // 10. Adicionar Aviso
     if ($acao === 'add_aviso') {
         $pdo->prepare("INSERT INTO mural_avisos (autor_id, titulo, mensagem, tipo) VALUES (?,?,?,?)")
             ->execute([$_SESSION['usuario_id'], $_POST['titulo'] ?? '', $_POST['mensagem'] ?? '', $_POST['tipo'] ?? 'info']);
         $msg_sucesso = 'Aviso publicado!';
     }
 
-    // 7. Atualizar Lead
+    // 11. Atualizar Lead
     if ($acao === 'atualizar_lead') {
         $pdo->prepare("UPDATE leads_indicacoes SET status = ? WHERE id = ?")
             ->execute([$_POST['status'] ?? 'novo', (int)($_POST['id'] ?? 0)]);
         $msg_sucesso = 'Status da indicação atualizado!';
     }
+
+    // 12. Pagamento Admin
+    if ($acao === 'add_pagamento_admin') {
+        $plano_id = (int)($_POST['plano_id'] ?? 0);
+        $stmt = $pdo->prepare("SELECT duracao_meses FROM planos_tabela WHERE id = ?");
+        $stmt->execute([$plano_id]);
+        $duracao = $stmt->fetchColumn();
+        if ($duracao) {
+            $vencimento = date('Y-m-d', strtotime("+{$duracao} months"));
+            $perc = min(100, max(0, (float)($_POST['percentual_academia'] ?? 50)));
+            $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, percentual_academia) VALUES (?,?,?,?,?,?,?,?)")
+                ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $perc]);
+            $msg_sucesso = 'Pagamento registado com sucesso!';
+        }
+    }
 }
 
-// Dados para a tela
-$mes_atual  = date('m');
-$ano_atual  = date('Y');
+// ── Dados ───────────────────────────────────────────────────
+$mes_atual = date('m');
+$ano_atual = date('Y');
+
 $stmt = $pdo->prepare("SELECT SUM(valor_pago) FROM pagamentos WHERE MONTH(data_pagamento) = ? AND YEAR(data_pagamento) = ?");
 $stmt->execute([$mes_atual, $ano_atual]);
 $total_caixa = $stmt->fetchColumn() ?: 0;
 
-$pagamentos = $pdo->query("SELECT p.*, u.nome as aluna_nome, pl.nome_plano FROM pagamentos p JOIN usuarios u ON p.aluna_id = u.id JOIN planos_tabela pl ON p.plano_id = pl.id ORDER BY p.data_pagamento DESC LIMIT 50")->fetchAll();
-$usuarios   = $pdo->query("SELECT * FROM usuarios ORDER BY tipo, nome")->fetchAll();
-$planos     = $pdo->query("SELECT * FROM planos_tabela")->fetchAll();
-$horarios   = $pdo->query("SELECT * FROM horarios_treino")->fetchAll();
+$stmt2 = $pdo->prepare("SELECT SUM(valor_pago * percentual_academia / 100) FROM pagamentos WHERE MONTH(data_pagamento) = ? AND YEAR(data_pagamento) = ?");
+$stmt2->execute([$mes_atual, $ano_atual]);
+$repasse_academia = $stmt2->fetchColumn() ?: 0;
+
+$pagamentos  = $pdo->query("SELECT p.*, u.nome as aluna_nome, pl.nome_plano FROM pagamentos p JOIN usuarios u ON p.aluna_id = u.id JOIN planos_tabela pl ON p.plano_id = pl.id ORDER BY p.data_pagamento DESC LIMIT 50")->fetchAll();
+$usuarios    = $pdo->query("SELECT * FROM usuarios ORDER BY tipo, nome")->fetchAll();
+$planos      = $pdo->query("SELECT * FROM planos_tabela")->fetchAll();
+$horarios    = $pdo->query("SELECT * FROM horarios_treino")->fetchAll();
+$alunas      = $pdo->query("SELECT * FROM usuarios WHERE tipo = 'aluno' ORDER BY nome")->fetchAll();
+$professores = $pdo->query("SELECT id, nome FROM usuarios WHERE tipo IN ('professor','treinador','instrutor') ORDER BY nome")->fetchAll();
+
+$turmas = [];
+try {
+    $turmas = $pdo->query("SELECT t.*, u.nome as prof_nome, h.dia_semana, h.horario FROM turmas t LEFT JOIN usuarios u ON t.professor_id = u.id LEFT JOIN horarios_treino h ON t.horario_id = h.id WHERE t.ativo = 1")->fetchAll();
+} catch (Exception $e) {}
+
+// Alunos com status de pagamento
+$alunos_status = [];
+try {
+    $alunos_raw = $pdo->query("SELECT u.*, GROUP_CONCAT(t.nome ORDER BY t.nome SEPARATOR ', ') as turmas_nomes FROM usuarios u LEFT JOIN aluno_turmas at2 ON u.id = at2.aluno_id LEFT JOIN turmas t ON at2.turma_id = t.id WHERE u.tipo = 'aluno' GROUP BY u.id ORDER BY u.nome")->fetchAll();
+    $hoje = date('Y-m-d');
+    foreach ($alunos_raw as $al) {
+        $stpag = $pdo->prepare("SELECT id FROM pagamentos WHERE aluna_id = ? AND data_vencimento >= ? LIMIT 1");
+        $stpag->execute([$al['id'], $hoje]);
+        $al['em_dia'] = (bool)$stpag->fetch();
+        $alunos_status[] = $al;
+    }
+} catch (Exception $e) {}
 
 $leads = [];
 try {
@@ -87,7 +164,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Painel Admin - Elite Thai</title>
+    <title>Elite Girls Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -124,17 +201,25 @@ try {
         .badge-professor{background:rgba(52,152,219,.2);color:#3498db;border:1px solid #3498db}
         .badge-instrutor{background:rgba(26,188,156,.2);color:#1abc9c;border:1px solid #1abc9c}
         .badge-aluno{background:rgba(46,204,113,.2);color:#2ecc71;border:1px solid #2ecc71}
+        .badge-emdia{background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800}
+        .badge-atrasado{background:rgba(255,68,68,.15);color:#ff4444;border:1px solid #ff4444;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800}
         .btn-excluir{background:rgba(255,68,68,.1);color:#ff4444;border:none;padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;transition:.3s}
         .btn-excluir:hover{background:#ff4444;color:#fff}
+        .btn-editar{background:rgba(241,196,15,.1);color:#f1c40f;border:none;padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;transition:.3s}
+        .btn-editar:hover{background:#f1c40f;color:#000}
         .alerta-saude{background:rgba(214,43,197,.1);border-left:3px solid #d62bc5;padding:10px;border-radius:8px;font-size:12px;color:#fff;margin-top:10px;line-height:1.5}
         .status-novo{color:#f1c40f}.status-contatado{color:#3498db}.status-matriculado{color:#2ecc71}
+        .edit-inline{display:none;background:#050308;padding:15px;border-radius:12px;border:1px solid #f1c40f;margin-top:10px}
+        .repasse-box{background:rgba(52,152,219,.1);border:1px solid #3498db;border-radius:12px;padding:15px;margin-bottom:20px}
+        .repasse-label{font-size:12px;color:#3498db;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+        .repasse-valor{font-size:28px;font-weight:800;color:#3498db}
     </style>
 </head>
 <body>
 <div class="app">
 
     <div class="header">
-        <h1><span>Elite</span> Admin</h1>
+        <h1><span>Elite</span> Girls | Admin</h1>
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 
@@ -142,12 +227,13 @@ try {
     <?php if ($msg_erro): ?><div class="alerta-erro"><i class="fas fa-exclamation-triangle"></i> <?= e($msg_erro) ?></div><?php endif; ?>
 
     <div class="tabs-menu">
-        <button class="tab-btn ativo" onclick="openTab('caixa', this)"><i class="fas fa-wallet"></i> Caixa</button>
-        <button class="tab-btn" onclick="openTab('leads', this)"><i class="fas fa-ticket-alt"></i> Indicações VIP</button>
-        <button class="tab-btn" onclick="openTab('equipe', this)"><i class="fas fa-users"></i> Equipa & Alunos</button>
-        <button class="tab-btn" onclick="openTab('horarios', this)"><i class="fas fa-clock"></i> Horários</button>
-        <button class="tab-btn" onclick="openTab('planos', this)"><i class="fas fa-tags"></i> Planos</button>
-        <button class="tab-btn" onclick="openTab('mural', this)"><i class="fas fa-bullhorn"></i> Mural</button>
+        <button class="tab-btn ativo" onclick="openTab('caixa',this)"><i class="fas fa-wallet"></i> Caixa</button>
+        <button class="tab-btn" onclick="openTab('leads',this)"><i class="fas fa-ticket-alt"></i> Indicações VIP</button>
+        <button class="tab-btn" onclick="openTab('equipe',this)"><i class="fas fa-users"></i> Equipa &amp; Alunos</button>
+        <button class="tab-btn" onclick="openTab('alunos',this)"><i class="fas fa-id-badge"></i> Alunos</button>
+        <button class="tab-btn" onclick="openTab('horarios',this)"><i class="fas fa-clock"></i> Horários</button>
+        <button class="tab-btn" onclick="openTab('planos',this)"><i class="fas fa-tags"></i> Planos</button>
+        <button class="tab-btn" onclick="openTab('mural',this)"><i class="fas fa-bullhorn"></i> Mural</button>
     </div>
 
     <!-- CAIXA -->
@@ -155,8 +241,39 @@ try {
         <div class="card" style="border-color:#2ecc71;background:linear-gradient(180deg,var(--card),rgba(46,204,113,.05))">
             <h3 class="card-titulo" style="color:#2ecc71"><i class="fas fa-chart-line" style="color:#2ecc71"></i> Receita do Mês</h3>
             <div style="font-size:36px;font-weight:800">R$ <?= number_format($total_caixa, 2, ',', '.') ?></div>
-            <p style="font-size:12px;color:var(--cinza);margin:0">Entradas em <?= date('m/Y') ?></p>
+            <p style="font-size:12px;color:var(--cinza);margin:5px 0 0">Entradas em <?= date('m/Y') ?></p>
         </div>
+        <div class="repasse-box">
+            <div class="repasse-label"><i class="fas fa-university"></i> Repasse Academia</div>
+            <div class="repasse-valor">R$ <?= number_format($repasse_academia, 2, ',', '.') ?></div>
+            <p style="font-size:11px;color:#3498db;margin:4px 0 0">Soma de (valor × % academia) dos pagamentos de <?= date('m/Y') ?></p>
+        </div>
+
+        <!-- Formulário de pagamento -->
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-file-invoice-dollar"></i> Registar Pagamento</h3>
+            <form method="POST">
+                <input type="hidden" name="acao" value="add_pagamento_admin">
+                <select name="aluna_id" required>
+                    <option value="">Selecione o(a) Aluno(a)...</option>
+                    <?php foreach ($alunas as $a): ?>
+                        <option value="<?= (int)$a['id'] ?>"><?= e($a['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="plano_id" required>
+                    <option value="">Selecione o Plano...</option>
+                    <?php foreach ($planos as $p): ?>
+                        <option value="<?= (int)$p['id'] ?>"><?= e($p['nome_plano']) ?> — R$ <?= number_format($p['valor'], 2, ',', '.') ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="number" step="0.01" name="valor" placeholder="Valor recebido (R$)" required>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px">% que vai para academia</label>
+                <input type="number" step="0.01" min="0" max="100" name="percentual_academia" value="50" required>
+                <textarea name="obs" rows="2" placeholder="Observações (Opcional)"></textarea>
+                <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Registar</button>
+            </form>
+        </div>
+
         <div class="card">
             <h3 class="card-titulo"><i class="fas fa-list"></i> Últimos Pagamentos</h3>
             <div style="max-height:400px;overflow-y:auto">
@@ -168,7 +285,9 @@ try {
                         </div>
                         <div style="font-size:12px;color:var(--cinza)">
                             <i class="fas fa-tag"></i> <?= e($pag['nome_plano']) ?> |
-                            <i class="fas fa-calendar-check"></i> Vence: <?= date('d/m/Y', strtotime($pag['data_vencimento'])) ?>
+                            <i class="fas fa-calendar-check"></i> Vence: <?= date('d/m/Y', strtotime($pag['data_vencimento'])) ?> |
+                            <i class="fas fa-university"></i> Academia: <?= number_format($pag['percentual_academia'] ?? 50, 1) ?>%
+                            (R$ <?= number_format($pag['valor_pago'] * ($pag['percentual_academia'] ?? 50) / 100, 2, ',', '.') ?>)
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -215,13 +334,13 @@ try {
     <div id="equipe" class="tab-content">
         <div class="card">
             <h3 class="card-titulo"><i class="fas fa-user-plus"></i> Novo Cadastro</h3>
-            <form method="POST">
+            <form method="POST" id="formAddUsuario">
                 <input type="hidden" name="acao" value="add_usuario">
                 <input type="text" name="nome" placeholder="Nome Completo" required>
                 <input type="email" name="email" placeholder="E-mail / Login" required>
                 <input type="text" name="telefone" placeholder="WhatsApp">
                 <input type="password" name="senha" placeholder="Senha de Acesso" required>
-                <select name="tipo" required>
+                <select name="tipo" required id="tipoSelect" onchange="toggleTurmaField()">
                     <option value="" disabled selected>Nível de Acesso</option>
                     <option value="aluno">Aluno(a)</option>
                     <option value="professor">Professor(a)</option>
@@ -229,6 +348,14 @@ try {
                     <option value="instrutor">Instrutor(a)</option>
                     <option value="admin">Administrador(a)</option>
                 </select>
+                <div id="turmaField" style="display:none">
+                    <select name="turma_id">
+                        <option value="">Sem turma (opcional)</option>
+                        <?php foreach ($turmas as $t): ?>
+                            <option value="<?= (int)$t['id'] ?>"><?= e($t['nome']) ?><?= $t['dia_semana'] ? ' — ' . e($t['dia_semana'] . ' ' . $t['horario']) : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                 <button type="submit" class="btn-submit">Cadastrar</button>
             </form>
         </div>
@@ -244,7 +371,7 @@ try {
                         <div style="font-size:12px;color:var(--cinza);margin-bottom:5px">
                             <i class="fas fa-envelope"></i> <?= e($u['email']) ?> | <i class="fab fa-whatsapp"></i> <?= e($u['telefone'] ?? 'N/A') ?>
                         </div>
-                        <?php if (in_array($u['tipo'], ['aluno']) && !empty($u['restricoes_medicas'])): ?>
+                        <?php if ($u['tipo'] === 'aluno' && !empty($u['restricoes_medicas'])): ?>
                             <div class="alerta-saude">
                                 <strong><i class="fas fa-notes-medical"></i> Ficha Médica:</strong><br>
                                 <?= nl2br(e($u['restricoes_medicas'])) ?>
@@ -264,6 +391,42 @@ try {
         </div>
     </div>
 
+    <!-- ALUNOS -->
+    <div id="alunos" class="tab-content">
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-id-badge"></i> Alunos — Status de Pagamento</h3>
+            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">
+                Total: <strong><?= count($alunos_status) ?></strong> aluno(s) |
+                Em dia: <strong style="color:#2ecc71"><?= count(array_filter($alunos_status, fn($x) => $x['em_dia'])) ?></strong> |
+                Atrasados: <strong style="color:#ff4444"><?= count(array_filter($alunos_status, fn($x) => !$x['em_dia'])) ?></strong>
+            </p>
+            <div style="max-height:600px;overflow-y:auto">
+                <?php foreach ($alunos_status as $al): ?>
+                    <div class="item-lista">
+                        <div class="item-topo">
+                            <span class="item-nome"><?= e($al['nome']) ?></span>
+                            <?php if ($al['em_dia']): ?>
+                                <span class="badge-emdia">✅ Em dia</span>
+                            <?php else: ?>
+                                <span class="badge-atrasado">❌ Atrasado</span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="font-size:12px;color:var(--cinza)">
+                            <i class="fas fa-envelope"></i> <?= e($al['email']) ?>
+                            <?php if (!empty($al['telefone'])): ?> | <i class="fab fa-whatsapp" style="color:#2ecc71"></i> <?= e($al['telefone']) ?><?php endif; ?>
+                        </div>
+                        <?php if (!empty($al['turmas_nomes'])): ?>
+                            <div style="font-size:12px;color:#7b2cbf;margin-top:4px"><i class="fas fa-layer-group"></i> <?= e($al['turmas_nomes']) ?></div>
+                        <?php else: ?>
+                            <div style="font-size:12px;color:var(--cinza);margin-top:4px"><i class="fas fa-layer-group"></i> Sem turma</div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                <?php if (empty($alunos_status)): ?><p style="color:var(--cinza);font-size:13px;text-align:center">Nenhum(a) aluno(a) cadastrado(a).</p><?php endif; ?>
+            </div>
+        </div>
+    </div>
+
     <!-- HORÁRIOS -->
     <div id="horarios" class="tab-content">
         <div class="card">
@@ -272,19 +435,60 @@ try {
                 <input type="hidden" name="acao" value="add_horario">
                 <input type="text" name="dia" placeholder="Dia (Ex: Segunda-feira)" required>
                 <input type="text" name="hora" placeholder="Horário (Ex: 20:30 às 21:30)" required>
-                <input type="text" name="desc" placeholder="Descrição (Ex: Treino Feminino)" required>
+                <input type="text" name="desc" placeholder="Descrição (Ex: Treino Feminino)">
                 <button type="submit" class="btn-submit">Adicionar</button>
             </form>
             <?php foreach ($horarios as $h): ?>
                 <div class="item-lista item-topo">
                     <div>
                         <span class="item-nome"><?= e($h['dia_semana']) ?></span><br>
-                        <span style="font-size:12px;color:var(--cinza)"><?= e($h['horario']) ?> - <?= e($h['descricao']) ?></span>
+                        <span style="font-size:12px;color:var(--cinza)"><?= e($h['horario']) ?> — <?= e($h['descricao'] ?? '') ?></span>
                     </div>
                     <form method="POST">
                         <input type="hidden" name="acao" value="excluir_horario">
                         <input type="hidden" name="id" value="<?= (int)$h['id'] ?>">
                         <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Turmas -->
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-layer-group"></i> Gerir Turmas</h3>
+            <form method="POST" style="margin-bottom:20px">
+                <input type="hidden" name="acao" value="add_turma">
+                <input type="text" name="nome" placeholder="Nome da Turma (Ex: Turma A — Manhã)" required>
+                <select name="professor_id">
+                    <option value="">Sem professor alocado</option>
+                    <?php foreach ($professores as $pr): ?>
+                        <option value="<?= (int)$pr['id'] ?>"><?= e($pr['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="horario_id">
+                    <option value="">Sem horário vinculado</option>
+                    <?php foreach ($horarios as $h): ?>
+                        <option value="<?= (int)$h['id'] ?>"><?= e($h['dia_semana'] . ' — ' . $h['horario']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn-submit"><i class="fas fa-plus"></i> Criar Turma</button>
+            </form>
+            <?php if (empty($turmas)): ?>
+                <p style="font-size:13px;color:var(--cinza);text-align:center">Nenhuma turma criada ainda.</p>
+            <?php endif; ?>
+            <?php foreach ($turmas as $t): ?>
+                <div class="item-lista item-topo">
+                    <div>
+                        <span class="item-nome"><?= e($t['nome']) ?></span><br>
+                        <span style="font-size:12px;color:var(--cinza)">
+                            <i class="fas fa-user-tie" style="color:#d62bc5"></i> <?= e($t['prof_nome'] ?? 'Sem professor') ?> |
+                            <i class="fas fa-clock" style="color:#7b2cbf"></i> <?= e(($t['dia_semana'] ?? '') . ' ' . ($t['horario'] ?? '')) ?>
+                        </span>
+                    </div>
+                    <form method="POST">
+                        <input type="hidden" name="acao" value="excluir_turma">
+                        <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+                        <button type="submit" class="btn-excluir" onclick="return confirm('Excluir esta turma?')"><i class="fas fa-trash"></i></button>
                     </form>
                 </div>
             <?php endforeach; ?>
@@ -304,10 +508,33 @@ try {
             </form>
             <h3 class="card-titulo" style="margin-top:30px">Planos Ativos</h3>
             <?php foreach ($planos as $p): ?>
-                <div class="item-lista item-topo">
-                    <div>
-                        <span class="item-nome"><?= e($p['nome_plano']) ?></span><br>
-                        <span style="font-size:12px;color:#2ecc71;font-weight:bold">R$ <?= number_format($p['valor'], 2, ',', '.') ?> (<?= (int)$p['duracao_meses'] ?> meses)</span>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome"><?= e($p['nome_plano']) ?></span><br>
+                            <span style="font-size:12px;color:#2ecc71;font-weight:bold">R$ <?= number_format($p['valor'], 2, ',', '.') ?> (<?= (int)$p['duracao_meses'] ?> meses)</span>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditPlano(<?= (int)$p['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST" onsubmit="return confirm('Excluir este plano?')">
+                                <input type="hidden" name="acao" value="excluir_plano">
+                                <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                                <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="editPlano<?= (int)$p['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_plano">
+                            <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                            <input type="text" name="nome_plano" value="<?= e($p['nome_plano']) ?>" placeholder="Nome do Plano" required>
+                            <input type="number" step="0.01" name="valor" value="<?= e($p['valor']) ?>" placeholder="Valor (R$)" required>
+                            <input type="number" name="duracao_meses" value="<?= (int)$p['duracao_meses'] ?>" placeholder="Duração (meses)" required>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none">Salvar</button>
+                                <button type="button" onclick="toggleEditPlano(<?= (int)$p['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -348,6 +575,14 @@ function openTab(tabName, btn) {
     document.getElementById(tabName).style.display = 'block';
     document.getElementById(tabName).classList.add('ativo');
     btn.classList.add('ativo');
+}
+function toggleEditPlano(id) {
+    var el = document.getElementById('editPlano' + id);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+function toggleTurmaField() {
+    var tipo = document.getElementById('tipoSelect').value;
+    document.getElementById('turmaField').style.display = tipo === 'aluno' ? 'block' : 'none';
 }
 </script>
 </body>
