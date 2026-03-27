@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($acao === 'add_usuario') {
         $senha_hash = password_hash($_POST['senha'] ?? '', PASSWORD_DEFAULT);
         try {
-            $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo) VALUES (?,?,?,?,?)")
-                ->execute([$_POST['nome'] ?? '', $_POST['email'] ?? '', $_POST['telefone'] ?? '', $senha_hash, $_POST['tipo'] ?? 'aluno']);
+            $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo, data_nascimento) VALUES (?,?,?,?,?,?)")
+                ->execute([$_POST['nome'] ?? '', $_POST['email'] ?? '', $_POST['telefone'] ?? '', $senha_hash, $_POST['tipo'] ?? 'aluno', ($_POST['data_nascimento'] ?: null)]);
             $novo_id = $pdo->lastInsertId();
             if (!empty($_POST['turma_id']) && ($_POST['tipo'] ?? '') === 'aluno') {
                 $pdo->prepare("INSERT IGNORE INTO aluno_turmas (aluno_id, turma_id) VALUES (?,?)")
@@ -400,6 +400,8 @@ try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY
                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-envelope"></i> Login / E-mail</label>
                 <input type="email" name="email" placeholder="E-mail ou login de acesso" required>
                 <input type="text" name="telefone" placeholder="WhatsApp (Opcional)">
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-calendar-alt"></i> Data de Nascimento</label>
+                <input type="date" name="data_nascimento" style="margin-bottom:12px">
                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-lock"></i> Senha de Acesso</label>
                 <input type="password" name="senha" placeholder="Senha" required>
                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-shield-alt"></i> Nível de Permissão</label>
@@ -500,6 +502,7 @@ try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY
                         <div style="font-size:12px;color:var(--cinza)">
                             <i class="fas fa-envelope"></i> <?= e($al['email']) ?>
                             <?php if (!empty($al['telefone'])): ?> | <i class="fab fa-whatsapp" style="color:#2ecc71"></i> <?= e($al['telefone']) ?><?php endif; ?>
+                            <?php if (!empty($al['data_nascimento'])): ?> | <i class="fas fa-birthday-cake"></i> <?= date('d/m/Y', strtotime($al['data_nascimento'])) ?><?php endif; ?>
                         </div>
                         <?php if (!empty($al['turmas_nomes'])): ?>
                             <div style="font-size:12px;color:#7b2cbf;margin-top:4px"><i class="fas fa-layer-group"></i> <?= e($al['turmas_nomes']) ?></div>
