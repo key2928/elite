@@ -74,22 +74,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="apple-touch-icon" href="icon.svg">
     <style>
         *{box-sizing:border-box;font-family:'Segoe UI',sans-serif}
-        body{background:#0a0010;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;min-height:100dvh;padding:20px;position:relative;overflow:hidden}
+        body{background:#0b0710;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;min-height:100dvh;padding:20px;position:relative;overflow:hidden}
         #stars-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
         .brand{text-align:center;margin-bottom:28px;position:relative;z-index:1}
-        .brand-logo{width:80px;height:80px;margin:0 auto 12px;display:block;filter:drop-shadow(0 0 12px rgba(123,44,191,.6))}
+        .brand-logo{width:80px;height:80px;margin:0 auto 12px;display:block}
         .brand-name{color:#fff;font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:2px;line-height:1.2}
-        .brand-name span{color:#c084fc}
-        .login-box{background:rgba(15,5,25,.85);backdrop-filter:blur(10px);padding:36px 30px;border-radius:20px;width:100%;max-width:400px;text-align:center;box-shadow:0 0 40px rgba(123,44,191,.3),0 0 80px rgba(123,44,191,.1);border:1px solid rgba(123,44,191,.25);position:relative;z-index:1}
-        h1{color:#c084fc;font-size:24px;text-transform:uppercase;font-style:italic;margin-bottom:24px;letter-spacing:2px;text-shadow:0 0 20px rgba(192,132,252,.4)}
+        .brand-name span{background:linear-gradient(90deg,#d62bc5,#7b2cbf);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .login-box{background:rgba(21,17,27,.92);padding:36px 30px;border-radius:20px;width:100%;max-width:400px;text-align:center;box-shadow:0 0 40px rgba(123,44,191,.25),0 0 80px rgba(214,43,197,.08);border:1px solid rgba(123,44,191,.25);position:relative;z-index:1}
+        h1{color:#d62bc5;font-size:24px;text-transform:uppercase;font-style:italic;margin-bottom:24px;letter-spacing:2px}
         .erro{background:#4a1525;color:#ffb3c6;padding:10px;border-radius:8px;margin-bottom:20px;font-weight:bold;border:1px solid #ff4d6d}
-        input[type="text"],input[type="password"]{width:100%;padding:15px;border-radius:10px;border:1px solid rgba(123,44,191,.3);background:rgba(20,10,35,.8);color:#fff;margin-bottom:15px;font-size:16px;transition:border-color .3s}
-        input[type="text"]:focus,input[type="password"]:focus{outline:none;border-color:#7b2cbf;box-shadow:0 0 10px rgba(123,44,191,.3)}
-        ::placeholder{color:#666}
+        input[type="text"],input[type="password"]{width:100%;padding:15px;border-radius:10px;border:1px solid rgba(123,44,191,.3);background:#0e0a16;color:#fff;margin-bottom:15px;font-size:16px}
+        input[type="text"]::placeholder,input[type="password"]::placeholder{color:#6a5580}
+        input[type="text"]:focus,input[type="password"]:focus{outline:none;border-color:#7b2cbf;box-shadow:0 0 0 2px rgba(123,44,191,.2)}
         .check{display:flex;align-items:center;margin-bottom:25px;color:#a0a0a0;font-size:14px}
         .check input{margin-right:10px;width:18px;height:18px;cursor:pointer;accent-color:#7b2cbf}
-        .btn{width:100%;padding:15px;border:none;border-radius:10px;background:#6d28d9;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;text-transform:uppercase;transition:all .3s;box-shadow:0 4px 20px rgba(109,40,217,.4)}
-        .btn:hover{background:#7c3aed;box-shadow:0 6px 28px rgba(109,40,217,.6);transform:translateY(-1px)}
+        .btn{width:100%;padding:15px;border:none;border-radius:10px;background:linear-gradient(90deg,#d62bc5,#7b2cbf);color:#fff;font-size:16px;font-weight:bold;cursor:pointer;text-transform:uppercase;transition:opacity .3s,box-shadow .3s;box-shadow:0 4px 20px rgba(123,44,191,.4)}
+        .btn:hover{opacity:.88;box-shadow:0 6px 28px rgba(214,43,197,.5)}
     </style>
 </head>
 <body>
@@ -112,67 +112,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 <script>
-// Space stars canvas
 (function(){
-    var canvas = document.getElementById('stars-canvas');
-    var ctx = canvas.getContext('2d');
-    var stars = [];
-    var nebula = [];
-    function resize(){
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    var c=document.getElementById('stars-canvas');
+    var ctx=c.getContext('2d');
+    var W,H,stars=[];
+    function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}
+    resize();
+    window.addEventListener('resize',resize);
+    for(var i=0;i<220;i++){
+        stars.push({
+            x:Math.random(),y:Math.random(),
+            r:Math.random()*1.5+.3,
+            o:Math.random()*.8+.15,
+            s:Math.random()*.0004+.00006,
+            d:Math.random()<.5?1:-1,
+            hue:Math.random()<.35?290:0
+        });
     }
-    function init(){
-        resize();
-        stars = [];
-        nebula = [];
-        for(var i=0;i<200;i++){
-            stars.push({
-                x: Math.random()*canvas.width,
-                y: Math.random()*canvas.height,
-                r: Math.random()*1.5+0.2,
-                alpha: Math.random()*0.8+0.2,
-                speed: Math.random()*0.3+0.05,
-                twinkle: Math.random()*0.02+0.005,
-                dir: Math.random()>0.5?1:-1
-            });
-        }
-        for(var j=0;j<4;j++){
-            nebula.push({
-                x: Math.random()*canvas.width,
-                y: Math.random()*canvas.height,
-                r: 80+Math.random()*180,
-                alpha: 0.03+Math.random()*0.05
-            });
-        }
-    }
+    var nebula=[
+        {x:.15,y:.25,rx:.35,ry:.22,c:'rgba(80,0,140,'},
+        {x:.82,y:.7,rx:.3,ry:.25,c:'rgba(120,0,200,'},
+        {x:.5,y:.55,rx:.45,ry:.3,c:'rgba(60,0,100,'}
+    ];
     function draw(){
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        // nebula blobs
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle='#07030f';
+        ctx.fillRect(0,0,W,H);
         nebula.forEach(function(n){
-            var g = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r);
-            g.addColorStop(0,'rgba(109,40,217,'+n.alpha+')');
-            g.addColorStop(0.5,'rgba(76,10,130,'+n.alpha*0.5+')');
-            g.addColorStop(1,'rgba(0,0,0,0)');
+            var gx=ctx.createRadialGradient(n.x*W,n.y*H,0,n.x*W,n.y*H,n.rx*W);
+            gx.addColorStop(0,n.c+'0.06)');
+            gx.addColorStop(1,n.c+'0)');
+            ctx.fillStyle=gx;
             ctx.beginPath();
-            ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-            ctx.fillStyle=g;
+            ctx.ellipse(n.x*W,n.y*H,n.rx*W,n.ry*H,0,0,Math.PI*2);
             ctx.fill();
         });
-        // stars
         stars.forEach(function(s){
-            s.alpha += s.twinkle * s.dir;
-            if(s.alpha>1){s.alpha=1;s.dir=-1;}
-            if(s.alpha<0.1){s.alpha=0.1;s.dir=1;}
+            s.o+=s.s*s.d;
+            if(s.o>0.95||s.o<0.1)s.d*=-1;
             ctx.beginPath();
-            ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-            ctx.fillStyle='rgba(255,255,255,'+s.alpha+')';
+            ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);
+            if(s.hue){
+                ctx.fillStyle='hsla('+s.hue+',70%,75%,'+s.o+')';
+            }else{
+                ctx.fillStyle='rgba(255,255,255,'+s.o+')';
+            }
             ctx.fill();
         });
         requestAnimationFrame(draw);
     }
-    window.addEventListener('resize',function(){init();});
-    init();
     draw();
 })();
 if ('serviceWorker' in navigator) {
