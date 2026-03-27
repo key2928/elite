@@ -4,40 +4,68 @@
       <stop offset="0%" style="stop-color:#0b0710"/>
       <stop offset="100%" style="stop-color:#1a0a2e"/>
     </linearGradient>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <!-- Pink glove gradient -->
+    <linearGradient id="glove-main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff85c8"/>
+      <stop offset="60%" style="stop-color:#e8329a"/>
+      <stop offset="100%" style="stop-color:#c01878"/>
+    </linearGradient>
+    <linearGradient id="glove-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffb3e0"/>
+      <stop offset="100%" style="stop-color:#ff6bb8"/>
+    </linearGradient>
+    <linearGradient id="cuff" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#d62bc5"/>
       <stop offset="100%" style="stop-color:#7b2cbf"/>
     </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff6ef7;stop-opacity:0.4"/>
-      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:0.1"/>
-    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="4" dy="8" stdDeviation="10" flood-color="#c01878" flood-opacity="0.5"/>
+    </filter>
   </defs>
+
   <!-- Background -->
   <rect width="512" height="512" rx="80" fill="url(#bg)"/>
-  <!-- Glow effect -->
-  <circle cx="256" cy="200" r="180" fill="url(#glow)"/>
-  <!-- Pink accent circle -->
-  <circle cx="256" cy="220" r="130" fill="none" stroke="url(#grad)" stroke-width="4" opacity="0.5"/>
-  <!-- Boxing gloves icon (stylized) -->
-  <!-- Left glove -->
-  <rect x="148" y="175" width="80" height="100" rx="40" fill="url(#grad)" opacity="0.9"/>
-  <rect x="148" y="175" width="80" height="55" rx="30" fill="url(#grad)"/>
-  <!-- Right glove -->
-  <rect x="284" y="175" width="80" height="100" rx="40" fill="url(#grad)" opacity="0.9"/>
-  <rect x="284" y="175" width="80" height="55" rx="30" fill="url(#grad)"/>
-  <!-- Glove knuckle highlights -->
-  <rect x="155" y="182" width="66" height="30" rx="15" fill="rgba(255,255,255,0.2)"/>
-  <rect x="291" y="182" width="66" height="30" rx="15" fill="rgba(255,255,255,0.2)"/>
-  <!-- Wrist bands -->
-  <rect x="152" y="260" width="72" height="25" rx="8" fill="#7b2cbf" opacity="0.8"/>
-  <rect x="288" y="260" width="72" height="25" rx="8" fill="#7b2cbf" opacity="0.8"/>
-  <!-- "ET" text -->
-  <text x="256" y="330" font-family="Arial, sans-serif" font-size="52" font-weight="900" font-style="italic" fill="url(#grad)" text-anchor="middle" letter-spacing="-2">ET</text>
-  <!-- "GIRLS" text at bottom -->
-  <text x="256" y="390" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="rgba(255,255,255,0.9)" text-anchor="middle" letter-spacing="8">GIRLS</text>
-  <!-- Bottom line accent -->
-  <rect x="96" y="406" width="320" height="3" rx="2" fill="url(#grad)" opacity="0.7"/>
-  <!-- "ELITE THAI" at very bottom -->
-  <text x="256" y="445" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="rgba(255,255,255,0.5)" text-anchor="middle" letter-spacing="4">ELITE THAI</text>
+
+  <!-- Soft pink glow behind glove -->
+  <ellipse cx="256" cy="230" rx="170" ry="150" fill="#e8329a" opacity="0.08"/>
+
+  <!-- ===== SINGLE PINK BOXING GLOVE (facing right, upright fist) ===== -->
+  <!-- Glove body (main fist / knuckle area) -->
+  <g filter="url(#shadow)">
+    <!-- Thumb -->
+    <ellipse cx="178" cy="195" rx="30" ry="22" fill="url(#glove-main)" transform="rotate(-30 178 195)"/>
+    <ellipse cx="178" cy="195" rx="22" ry="15" fill="url(#glove-light)" opacity="0.5" transform="rotate(-30 178 195)"/>
+
+    <!-- Main fist block -->
+    <rect x="170" y="155" width="160" height="130" rx="44" fill="url(#glove-main)"/>
+
+    <!-- Knuckle highlight strip -->
+    <rect x="182" y="163" width="136" height="44" rx="22" fill="url(#glove-light)" opacity="0.55"/>
+
+    <!-- Knuckle separation lines -->
+    <line x1="230" y1="163" x2="224" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+    <line x1="270" y1="163" x2="264" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+    <line x1="310" y1="163" x2="304" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+
+    <!-- Glove wrist / cuff -->
+    <rect x="190" y="278" width="120" height="68" rx="18" fill="url(#cuff)"/>
+
+    <!-- Cuff stripe decoration -->
+    <rect x="190" y="296" width="120" height="14" rx="0" fill="rgba(255,255,255,0.18)"/>
+    <rect x="190" y="318" width="120" height="8" rx="0" fill="rgba(255,255,255,0.10)"/>
+
+    <!-- Cuff bottom curve -->
+    <ellipse cx="250" cy="346" rx="60" ry="12" fill="url(#cuff)"/>
+  </g>
+
+  <!-- "ELITE THAI" label -->
+  <text x="256" y="406" font-family="Arial, sans-serif" font-size="30" font-weight="900" font-style="italic"
+        fill="#ff85c8" text-anchor="middle" letter-spacing="2" opacity="0.95">ELITE THAI</text>
+
+  <!-- Bottom accent line -->
+  <rect x="96" y="416" width="320" height="3" rx="2" fill="url(#glove-main)" opacity="0.7"/>
+
+  <!-- "GIRLS" sub-label -->
+  <text x="256" y="452" font-family="Arial, sans-serif" font-size="22" font-weight="700"
+        fill="rgba(255,255,255,0.75)" text-anchor="middle" letter-spacing="10">GIRLS</text>
 </svg>
