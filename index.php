@@ -103,6 +103,65 @@ try {
         $minhas_turmas_aluno = $stmtTA->fetchAll();
     } catch (Exception $ex) {}
 
+    // Próxima Aula
+    $proxima_aula = null;
+    try {
+        if (!empty($minhas_turmas_aluno)) {
+            $now = new DateTime();
+            $weekday_map = [
+                'segunda' => 1, 'monday' => 1,
+                'terça'   => 2, 'terca'  => 2, 'tuesday'  => 2,
+                'quarta'  => 3, 'wednesday' => 3,
+                'quinta'  => 4, 'thursday'  => 4,
+                'sexta'   => 5, 'friday'    => 5,
+                'sábado'  => 6, 'sabado' => 6, 'saturday' => 6,
+                'domingo' => 0, 'sunday'    => 0,
+            ];
+            $candidatos = [];
+            foreach ($minhas_turmas_aluno as $mt) {
+                if (empty($mt['dia_semana']) || empty($mt['horario'])) continue;
+                $lc = mb_strtolower($mt['dia_semana'], 'UTF-8');
+                $dw = null;
+                foreach ($weekday_map as $k => $v) { if (str_contains($lc, $k)) { $dw = $v; break; } }
+                if ($dw === null) continue;
+                preg_match('/\d{2}:\d{2}/', $mt['horario'], $m);
+                $hora_aula = $m[0] ?? '00:00';
+                $diff = ($dw - (int)$now->format('w') + 7) % 7;
+                if ($diff === 0) {
+                    $hoje_aula = new DateTime($now->format('Y-m-d') . ' ' . $hora_aula);
+                    if ($hoje_aula < $now) { $diff = 7; }
+                }
+                $proxima = (clone $now)->modify("+{$diff} days");
+                $proxima->setTime((int)substr($hora_aula, 0, 2), (int)substr($hora_aula, 3, 2), 0);
+                $candidatos[] = ['datetime' => $proxima, 'turma' => $mt];
+            }
+            if (!empty($candidatos)) {
+                usort($candidatos, fn($a, $b) => $a['datetime'] <=> $b['datetime']);
+                $proxima_aula = $candidatos[0];
+            }
+        }
+    } catch (Exception $ex) {}
+
+    // Dica do Dia
+    $dicas_dia = [
+        '💪 Aqueça bem antes de cada treino para prevenir lesões e melhorar o desempenho.',
+        '🥤 Hidratação é essencial! Beba água antes, durante e após o treino.',
+        '🧘 O descanso faz parte do treino. Uma boa noite de sono acelera a recuperação.',
+        '🥊 Foque na técnica antes de aumentar a intensidade. Qualidade vale mais que quantidade.',
+        '🍎 Uma boa alimentação representa 50% dos seus resultados. Cuide do que come!',
+        '🔥 Consistência é mais poderosa que perfeição. Apareça mesmo nos dias difíceis.',
+        '🏋️ Fortaleça o core — ele é a base de todos os movimentos do Muay Thai.',
+        '😤 Na hora difícil, lembre-se do motivo que te trouxe até aqui. Não desista!',
+        '⚡ Cada treino te deixa mais forte, mais ágil e mais confiante do que ontem.',
+        '🤜 No Muay Thai, a mente desiste antes do corpo. Treine a sua mentalidade!',
+        '🦵 Trabalhe o alongamento diário para ganhar amplitude de movimento nos chutes.',
+        '🛡️ Defesa é tão importante quanto ataque. Aprenda a se proteger com maestria.',
+        '🎯 Defina um objetivo claro para cada treino. Saber o que quer melhora o foco.',
+        '👊 A combinação jab-cruzado é a base de tudo. Perfeiçoe-a sem parar.',
+        '🌟 Celebre as suas pequenas vitórias — cada treino concluído é uma conquista!',
+    ];
+    $dica_hoje = $dicas_dia[date('z') % count($dicas_dia)];
+
 } catch (Exception $ex) {
     die("<div style='background:#111;color:#ff4444;padding:20px'><b>Erro:</b> " . e($ex->getMessage()) . "</div>");
 }
@@ -231,6 +290,25 @@ try {
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 
+    <!-- Alerta de Plano Vencido / A Vencer -->
+    <?php
+    $plano_check = $plano ?? null;
+    if ($plano_check):
+        $hoje_check  = new DateTime();
+        $venc_check  = new DateTime($plano_check['data_vencimento']);
+        $diff_check  = (int)$hoje_check->diff($venc_check)->days;
+        $passou_check = $venc_check < $hoje_check;
+        if ($passou_check || $diff_check <= 7):
+    ?>
+    <div style="background:<?= $passou_check ? 'rgba(255,68,68,.12)' : 'rgba(241,196,15,.1)' ?>;border:1px solid <?= $passou_check ? '#ff4444' : '#f1c40f' ?>;border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+        <div style="font-size:26px;flex-shrink:0"><?= $passou_check ? '⚠️' : '⏳' ?></div>
+        <div>
+            <div style="font-weight:800;font-size:13px;color:<?= $passou_check ? '#ff4444' : '#f1c40f' ?>"><?= $passou_check ? 'Plano Vencido!' : 'Plano Vencendo em Breve!' ?></div>
+            <div style="font-size:12px;color:var(--cinza);margin-top:3px"><?= $passou_check ? 'A sua mensalidade venceu em ' . date('d/m/Y', strtotime($plano_check['data_vencimento'])) . '. Renove para continuar treinando!' : "Faltam {$diff_check} dia(s) para vencer. Renove para não perder o acesso!" ?></div>
+        </div>
+    </div>
+    <?php endif; endif; ?>
+
     <!-- Cartão Fidelização -->
     <div class="card" style="border-left:4px solid #d62bc5;position:relative;overflow:hidden">
         <div style="position:absolute;top:-50px;right:-50px;width:100px;height:100px;background:var(--pink);filter:blur(50px);opacity:.3"></div>
@@ -257,6 +335,44 @@ try {
         <button onclick="compartilharLink()" class="btn-indicar">
             <i class="fas fa-share-nodes"></i> Compartilhar Convite
         </button>
+    </div>
+
+    <!-- Próxima Aula -->
+    <?php if ($proxima_aula): ?>
+    <?php
+        $now_pa   = new DateTime();
+        $diff_pa  = $now_pa->diff($proxima_aula['datetime']);
+        $dias_pa  = (int)$diff_pa->days;
+        if ($dias_pa === 0)      { $tempo_pa = "Hoje às " . $proxima_aula['datetime']->format('H:i'); }
+        elseif ($dias_pa === 1)  { $tempo_pa = "Amanhã às " . $proxima_aula['datetime']->format('H:i'); }
+        else                     { $tempo_pa = "Em {$dias_pa} dias — " . $proxima_aula['datetime']->format('d/m') . " às " . $proxima_aula['datetime']->format('H:i'); }
+        $urgente_pa = $dias_pa === 0;
+    ?>
+    <div class="card" style="border-left:4px solid <?= $urgente_pa ? '#2ecc71' : '#7b2cbf' ?>;background:linear-gradient(135deg,var(--card),rgba(123,44,191,.07))">
+        <h3 class="card-titulo"><i class="fas fa-dumbbell" style="background:none;-webkit-text-fill-color:<?= $urgente_pa ? '#2ecc71' : '#d62bc5' ?>"></i> Próxima Aula</h3>
+        <div style="display:flex;align-items:center;gap:16px">
+            <div style="background:<?= $urgente_pa ? 'rgba(46,204,113,.15)' : 'rgba(214,43,197,.1)' ?>;border:1px solid <?= $urgente_pa ? '#2ecc71' : '#d62bc5' ?>;border-radius:14px;padding:14px 18px;text-align:center;flex-shrink:0">
+                <div style="font-size:24px;font-weight:800;color:<?= $urgente_pa ? '#2ecc71' : '#d62bc5' ?>"><?= $proxima_aula['datetime']->format('H:i') ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;font-weight:600"><?= $proxima_aula['datetime']->format('d/m') ?></div>
+            </div>
+            <div>
+                <div style="font-weight:800;font-size:15px"><?= e($proxima_aula['turma']['nome']) ?></div>
+                <div style="font-size:13px;color:var(--cinza);margin-top:4px"><i class="fas fa-clock" style="color:#7b2cbf;margin-right:5px"></i> <?= e($tempo_pa) ?></div>
+                <?php if (!empty($proxima_aula['turma']['professores_nomes'])): ?>
+                    <div style="font-size:12px;color:var(--cinza);margin-top:3px"><i class="fas fa-user-tie" style="color:#d62bc5;margin-right:5px"></i> <?= e($proxima_aula['turma']['professores_nomes']) ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php if ($urgente_pa): ?>
+            <div style="margin-top:14px;background:rgba(46,204,113,.08);border:1px dashed #2ecc71;border-radius:10px;padding:10px;text-align:center;font-size:12px;color:#2ecc71;font-weight:700"><i class="fas fa-fire-alt" style="margin-right:5px"></i> É hoje! Prepare-se e não falte!</div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Dica do Dia -->
+    <div class="card" style="border-left:4px solid #FF8C00;background:linear-gradient(135deg,var(--card),rgba(255,140,0,.05))">
+        <h3 class="card-titulo"><i class="fas fa-lightbulb" style="background:none;-webkit-text-fill-color:#FF8C00"></i> Dica do Dia</h3>
+        <p style="font-size:14px;color:var(--txt);line-height:1.7;margin:0;font-weight:500"><?= e($dica_hoje) ?></p>
     </div>
 
     <!-- Ficha de Saúde -->
@@ -393,6 +509,35 @@ try {
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
+
+        <!-- Progressão de Ranks -->
+        <div style="font-size:12px;color:#7b2cbf;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px"><i class="fas fa-gem"></i> Jornada de Ranks</div>
+        <?php
+        $ranks_prog = [
+            ['nome' => 'Aprendiz',   'gem' => 'Safira',   'xp_min' => 0,    'xp_max' => 199,  'cor' => '#3b82f6', 'rgba' => '59,130,246',  'emoji' => '💎'],
+            ['nome' => 'Focada',     'gem' => 'Ametista', 'xp_min' => 200,  'xp_max' => 499,  'cor' => '#a855f7', 'rgba' => '168,85,247',  'emoji' => '🔮'],
+            ['nome' => 'Guerreira',  'gem' => 'Rubi',     'xp_min' => 500,  'xp_max' => 999,  'cor' => '#ef4444', 'rgba' => '239,68,68',   'emoji' => '❤️‍🔥'],
+            ['nome' => 'Imparável',  'gem' => 'Diamante', 'xp_min' => 1000, 'xp_max' => 1999, 'cor' => '#06b6d4', 'rgba' => '6,182,212',   'emoji' => '💠'],
+            ['nome' => 'Lenda',      'gem' => 'Elite',    'xp_min' => 2000, 'xp_max' => null,  'cor' => '#f1c40f', 'rgba' => '241,196,15',  'emoji' => '👑'],
+        ];
+        foreach ($ranks_prog as $rp):
+            $atual = $xp >= $rp['xp_min'] && ($rp['xp_max'] === null || $xp <= $rp['xp_max']);
+            $concluido = $rp['xp_max'] !== null && $xp > $rp['xp_max'];
+            $falta_r = $rp['xp_max'] !== null && !$concluido ? ($rp['xp_max'] + 1 - $xp) . ' XP para avançar' : ($rp['xp_max'] === null ? 'Rank máximo!' : 'Concluído ✓');
+        ?>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;margin-bottom:8px;background:<?= $atual ? 'rgba(' . $rp['rgba'] . ',.12)' : 'rgba(255,255,255,.02)' ?>;border:1px solid <?= $atual ? $rp['cor'] : 'rgba(255,255,255,.06)' ?>;<?= $atual ? 'box-shadow:0 4px 14px rgba(0,0,0,.4)' : '' ?>">
+            <div style="font-size:22px;width:36px;text-align:center;flex-shrink:0;opacity:<?= $concluido || $atual ? '1' : '.35' ?>"><?= $rp['emoji'] ?></div>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:13px;color:<?= $atual ? $rp['cor'] : ($concluido ? '#2ecc71' : 'var(--cinza)') ?>"><?= $rp['emoji'] ?> <?= $rp['nome'] ?> <span style="font-weight:400;font-size:11px">(<?= $rp['gem'] ?>)</span></div>
+                <div style="font-size:11px;color:var(--cinza);margin-top:2px"><?= $rp['xp_max'] !== null ? $rp['xp_min'] . ' – ' . $rp['xp_max'] . ' XP' : $rp['xp_min'] . '+ XP' ?> &nbsp;·&nbsp; <span style="color:<?= $atual ? $rp['cor'] : ($concluido ? '#2ecc71' : 'var(--cinza)') ?>"><?= $falta_r ?></span></div>
+            </div>
+            <?php if ($atual): ?>
+                <div style="background:<?= $rp['cor'] ?>;color:#000;font-size:10px;font-weight:800;padding:4px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0">ATUAL</div>
+            <?php elseif ($concluido): ?>
+                <div style="color:#2ecc71;font-size:16px;flex-shrink:0">✓</div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
     </div>
 
     <!-- Brindes / Roleta -->
