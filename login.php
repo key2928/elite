@@ -60,22 +60,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Elite Thai</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elite Thai Girls</title>
+    <meta name="description" content="Academia Elite Thai Girls — Muay Thai & Fitness">
+    <meta name="theme-color" content="#d62bc5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Elite Thai Girls">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Elite Thai Girls">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
     <style>
         *{box-sizing:border-box;font-family:'Segoe UI',sans-serif}
-        body{background:#0b0710;margin:0;display:flex;justify-content:center;align-items:center;height:100vh}
-        .login-box{background:#15111b;padding:40px;border-radius:20px;width:100%;max-width:400px;text-align:center;box-shadow:0 0 20px rgba(0,0,0,.5)}
-        h1{color:#d62bc5;font-size:28px;text-transform:uppercase;font-style:italic;margin-bottom:30px;letter-spacing:2px}
+        body{background:#0b0710;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;min-height:100dvh;padding:20px}
+        .brand{text-align:center;margin-bottom:28px}
+        .brand-logo{width:80px;height:80px;margin:0 auto 12px;display:block}
+        .brand-name{color:#fff;font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:2px;line-height:1.2}
+        .brand-name span{background:linear-gradient(90deg,#d62bc5,#7b2cbf);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .login-box{background:#15111b;padding:36px 30px;border-radius:20px;width:100%;max-width:400px;text-align:center;box-shadow:0 0 30px rgba(214,43,197,.2)}
+        h1{color:#d62bc5;font-size:24px;text-transform:uppercase;font-style:italic;margin-bottom:24px;letter-spacing:2px}
         .erro{background:#4a1525;color:#ffb3c6;padding:10px;border-radius:8px;margin-bottom:20px;font-weight:bold;border:1px solid #ff4d6d}
         input[type="text"],input[type="password"]{width:100%;padding:15px;border-radius:10px;border:none;background:#eef2f5;margin-bottom:15px;font-size:16px}
         .check{display:flex;align-items:center;margin-bottom:25px;color:#a0a0a0;font-size:14px}
         .check input{margin-right:10px;width:18px;height:18px;cursor:pointer}
         .btn{width:100%;padding:15px;border:none;border-radius:10px;background:linear-gradient(90deg,#d62bc5,#7b2cbf);color:#fff;font-size:16px;font-weight:bold;cursor:pointer;text-transform:uppercase;transition:opacity .3s}
         .btn:hover{opacity:.8}
+        @media(min-width:768px){
+            body{background:radial-gradient(ellipse at 50% 30%,rgba(214,43,197,.15) 0%,#0b0710 70%)}
+            .login-box{box-shadow:0 20px 60px rgba(214,43,197,.25)}
+        }
     </style>
 </head>
 <body>
+<div class="brand">
+    <img src="icon.svg" alt="Elite Thai Girls" class="brand-logo">
+    <div class="brand-name"><span>Elite Thai</span> Girls</div>
+</div>
 <div class="login-box">
     <?php if ($erro): ?><div class="erro"><?= e($erro) ?></div><?php endif; ?>
     <h1>ENTRAR</h1>
@@ -89,5 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" class="btn">ENTRAR NO TREINO</button>
     </form>
 </div>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+</script>
 </body>
 </html>
