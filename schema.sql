@@ -12,17 +12,29 @@ USE `iubsit15_academia`;
 -- Níveis: admin | professor | treinador | instrutor | aluno
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `usuarios` (
-    `id`                  INT(11) NOT NULL AUTO_INCREMENT,
-    `nome`                VARCHAR(150) NOT NULL,
-    `email`               VARCHAR(150) NOT NULL,
-    `telefone`            VARCHAR(20) DEFAULT NULL,
-    `senha`               VARCHAR(255) NOT NULL,
-    `tipo`                ENUM('admin','professor','treinador','instrutor','aluno') NOT NULL DEFAULT 'aluno',
-    `restricoes_medicas`  TEXT DEFAULT NULL,
-    `xp_atual`            INT(11) NOT NULL DEFAULT 0,
-    `treinos_concluidos`  INT(11) NOT NULL DEFAULT 0,
-    `ativo`               TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at`          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `id`                    INT(11) NOT NULL AUTO_INCREMENT,
+    `nome`                  VARCHAR(150) NOT NULL,
+    `email`                 VARCHAR(150) NOT NULL,
+    `telefone`              VARCHAR(20) DEFAULT NULL,
+    `senha`                 VARCHAR(255) NOT NULL,
+    `tipo`                  ENUM('admin','professor','treinador','instrutor','aluno') NOT NULL DEFAULT 'aluno',
+    `restricoes_medicas`    TEXT DEFAULT NULL,
+    `xp_atual`              INT(11) NOT NULL DEFAULT 0,
+    `treinos_concluidos`    INT(11) NOT NULL DEFAULT 0,
+    `ativo`                 TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Ficha Médica Muay Thai
+    `data_nascimento`       DATE DEFAULT NULL,
+    `tipo_sanguineo`        VARCHAR(5) DEFAULT NULL,
+    `peso`                  DECIMAL(5,2) DEFAULT NULL,
+    `altura`                DECIMAL(5,2) DEFAULT NULL,
+    `doencas_cronicas`      TEXT DEFAULT NULL,
+    `medicamentos_uso`      TEXT DEFAULT NULL,
+    `historico_lesoes`      TEXT DEFAULT NULL,
+    `emergencia_nome`       VARCHAR(150) DEFAULT NULL,
+    `emergencia_telefone`   VARCHAR(20) DEFAULT NULL,
+    `objetivo_treino`       TEXT DEFAULT NULL,
+    `nivel_experiencia`     ENUM('iniciante','intermediario','avancado') NOT NULL DEFAULT 'iniciante',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -71,14 +83,15 @@ CREATE TABLE IF NOT EXISTS `horarios_treino` (
 -- Histórico de pagamentos / matrículas dos alunos
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `pagamentos` (
-    `id`                INT(11) NOT NULL AUTO_INCREMENT,
-    `aluna_id`          INT(11) NOT NULL,
-    `treinador_id`      INT(11) DEFAULT NULL,
-    `plano_id`          INT(11) NOT NULL,
-    `valor_pago`        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    `data_pagamento`    DATE NOT NULL,
-    `data_vencimento`   DATE NOT NULL,
-    `observacao_aluna`  TEXT DEFAULT NULL,
+    `id`                  INT(11) NOT NULL AUTO_INCREMENT,
+    `aluna_id`            INT(11) NOT NULL,
+    `treinador_id`        INT(11) DEFAULT NULL,
+    `plano_id`            INT(11) NOT NULL,
+    `valor_pago`          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    `data_pagamento`      DATE NOT NULL,
+    `data_vencimento`     DATE NOT NULL,
+    `observacao_aluna`    TEXT DEFAULT NULL,
+    `forma_pagamento`     ENUM('pix','credito','debito','dinheiro') NOT NULL DEFAULT 'pix',
     `percentual_academia` DECIMAL(5,2) NOT NULL DEFAULT 50.00,
     PRIMARY KEY (`id`),
     KEY `fk_pag_aluna`     (`aluna_id`),
@@ -203,3 +216,24 @@ CREATE TABLE IF NOT EXISTS `presencas` (
     CONSTRAINT `fk_pres_aluno` FOREIGN KEY (`aluno_id`)     REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_pres_prof`  FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- MIGRAÇÕES — colunas adicionadas em atualização
+-- Execute em bancos já existentes para aplicar as mudanças
+-- ============================================================
+
+ALTER TABLE `usuarios`
+    ADD COLUMN IF NOT EXISTS `data_nascimento`     DATE             DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `tipo_sanguineo`      VARCHAR(5)       DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `peso`                DECIMAL(5,2)     DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `altura`              DECIMAL(5,2)     DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `doencas_cronicas`    TEXT             DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `medicamentos_uso`    TEXT             DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `historico_lesoes`    TEXT             DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `emergencia_nome`     VARCHAR(150)     DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `emergencia_telefone` VARCHAR(20)      DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `objetivo_treino`     TEXT             DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `nivel_experiencia`   ENUM('iniciante','intermediario','avancado') NOT NULL DEFAULT 'iniciante';
+
+ALTER TABLE `pagamentos`
+    ADD COLUMN IF NOT EXISTS `forma_pagamento` ENUM('pix','credito','debito','dinheiro') NOT NULL DEFAULT 'pix';

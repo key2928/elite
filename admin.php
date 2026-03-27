@@ -136,8 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($duracao) {
             $vencimento = date('Y-m-d', strtotime("+{$duracao} months"));
             $perc = min(100, max(0, (float)($_POST['percentual_academia'] ?? 50)));
-            $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, percentual_academia) VALUES (?,?,?,?,?,?,?,?)")
-                ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $perc]);
+            $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, forma_pagamento, percentual_academia) VALUES (?,?,?,?,?,?,?,?,?)")
+                ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $_POST['forma_pagamento'] ?? 'pix', $perc]);
             $msg_sucesso = 'Pagamento registado com sucesso!';
         }
     }
@@ -155,7 +155,7 @@ $stmt2 = $pdo->prepare("SELECT SUM(valor_pago * percentual_academia / 100) FROM 
 $stmt2->execute([$mes_atual, $ano_atual]);
 $repasse_academia = $stmt2->fetchColumn() ?: 0;
 
-$pagamentos  = $pdo->query("SELECT p.*, u.nome as aluna_nome, pl.nome_plano FROM pagamentos p JOIN usuarios u ON p.aluna_id = u.id JOIN planos_tabela pl ON p.plano_id = pl.id ORDER BY p.data_pagamento DESC LIMIT 50")->fetchAll();
+$pagamentos  = $pdo->query("SELECT p.*, u.nome as aluna_nome, pl.nome_plano, t.nome as treinador_nome FROM pagamentos p JOIN usuarios u ON p.aluna_id = u.id JOIN planos_tabela pl ON p.plano_id = pl.id LEFT JOIN usuarios t ON p.treinador_id = t.id ORDER BY p.data_pagamento DESC LIMIT 50")->fetchAll();
 $usuarios    = $pdo->query("SELECT * FROM usuarios ORDER BY tipo, nome")->fetchAll();
 $planos      = $pdo->query("SELECT * FROM planos_tabela")->fetchAll();
 $horarios    = $pdo->query("SELECT * FROM horarios_treino")->fetchAll();
@@ -293,6 +293,12 @@ try {
                     <?php endforeach; ?>
                 </select>
                 <input type="number" step="0.01" name="valor" placeholder="Valor recebido (R$)" required>
+                <select name="forma_pagamento" required>
+                    <option value="pix">💳 PIX</option>
+                    <option value="credito">💳 Cartão de Crédito</option>
+                    <option value="debito">💳 Cartão de Débito</option>
+                    <option value="dinheiro">💵 Dinheiro</option>
+                </select>
                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px">% que vai para academia</label>
                 <input type="number" step="0.01" min="0" max="100" name="percentual_academia" value="50" required>
                 <textarea name="obs" rows="2" placeholder="Observações (Opcional)"></textarea>
@@ -302,6 +308,7 @@ try {
 
         <div class="card">
             <h3 class="card-titulo"><i class="fas fa-list"></i> Últimos Pagamentos</h3>
+            <?php $fp_labels = ['pix'=>'PIX','credito'=>'Cartão Crédito','debito'=>'Cartão Débito','dinheiro'=>'Dinheiro']; ?>
             <div style="max-height:400px;overflow-y:auto">
                 <?php foreach ($pagamentos as $pag): ?>
                     <div class="item-lista">
@@ -312,8 +319,12 @@ try {
                         <div style="font-size:12px;color:var(--cinza)">
                             <i class="fas fa-tag"></i> <?= e($pag['nome_plano']) ?> |
                             <i class="fas fa-calendar-check"></i> Vence: <?= date('d/m/Y', strtotime($pag['data_vencimento'])) ?> |
+                            <i class="fas fa-credit-card"></i> <?= e($fp_labels[$pag['forma_pagamento'] ?? 'pix']) ?> |
                             <i class="fas fa-university"></i> Academia: <?= number_format($pag['percentual_academia'] ?? 50, 1) ?>%
                             (R$ <?= number_format($pag['valor_pago'] * ($pag['percentual_academia'] ?? 50) / 100, 2, ',', '.') ?>)
+                            <?php if (!empty($pag['treinador_nome'])): ?>
+                                | <i class="fas fa-user-tie"></i> <?= e($pag['treinador_nome']) ?>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
