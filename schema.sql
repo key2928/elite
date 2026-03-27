@@ -264,11 +264,10 @@ CREATE TABLE IF NOT EXISTS `brindes` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `brindes` (`nome`,`descricao`) VALUES
+INSERT IGNORE INTO `brindes` (`nome`,`descricao`) VALUES
 ('Garrafa Elite','Garrafa personalizada Elite Thai Girls'),
 ('Camiseta Elite','Camiseta oficial da academia'),
-('Luva Elite','Luva de treino personalizada')
-ON DUPLICATE KEY UPDATE nome=nome;
+('Luva Elite','Luva de treino personalizada');
 
 CREATE TABLE IF NOT EXISTS `brindes_aluna` (
     `id`              INT(11) NOT NULL AUTO_INCREMENT,

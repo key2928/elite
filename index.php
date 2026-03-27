@@ -719,8 +719,11 @@ function compartilharLink() {
                 var bId  = ids[ganhou] || '';
                 document.getElementById('roletaBrindeId').value = bId;
                 setTimeout(function(){
-                    alert('\uD83C\uDF89 Você ganhou: ' + nome + '!\nAguarde a entrega do seu prêmio!');
-                    document.getElementById('formRoleta').submit();
+                    // Show toast notification instead of alert
+                    var toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#1a0a2e,#2a1b3d);border:2px solid #f1c40f;border-radius:20px;padding:28px 32px;z-index:9999;text-align:center;color:#fff;font-family:Poppins,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.8);max-width:320px;width:90%';
+                    toast.innerHTML = '<div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:18px;font-weight:800;color:#f1c40f;margin-bottom:8px">Você ganhou!</div><div style="font-size:15px;margin-bottom:20px">' + nome + '</div><div style="font-size:12px;color:#b5a8c9;margin-bottom:16px">Aguarde a entrega do seu prêmio!</div><button onclick="this.parentNode.remove();document.getElementById(\'formRoleta\').submit();" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;border:none;padding:12px 28px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer">✔ Ok, obrigada!</button>';
+                    document.body.appendChild(toast);
                 }, 200);
             }
         }

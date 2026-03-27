@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pp = $pdo->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id=? AND data_presenca IN (".implode(',',array_fill(0,count($dias_passados),'?')).") AND presente=1");
                 $pp->execute(array_merge([$aid], $dias_passados));
                 $presencas_ok = (int)$pp->fetchColumn();
-                if ($faltas === 0 && $presencas_ok === count($dias_passados) && $hoje >= $ultimo_dia) {
+                if ($faltas === 0 && $presencas_ok === count($dias_passados) && strtotime($hoje) >= strtotime($ultimo_dia)) {
                     $chk = $pdo->prepare("SELECT id FROM brindes_aluna WHERE aluna_id=? AND mes_referencia=?");
                     $chk->execute([$aid, $mes]);
                     if (!$chk->fetch()) {
