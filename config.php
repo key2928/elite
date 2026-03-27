@@ -3,18 +3,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Dados que você enviou
 $host = 'localhost';
 $db   = 'iubsit15_academia';
 $user = 'iubsit15_academiuser';
-$pass = '@Vanvan123'; // Sua senha
+$pass = '@Vanvan123';
 
 try {
-     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-     die("Erro ao conectar ao banco: " . $e->getMessage());
+    die("Erro ao conectar ao banco.");
 }
 
-function e($string) { return htmlspecialchars($string, ENT_QUOTES, 'UTF-8'); }
+function e($str) {
+    return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
+}
 ?>
