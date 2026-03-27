@@ -364,6 +364,14 @@ try {
         .ficha-label{font-size:11px;color:var(--cinza);display:block;margin-bottom:3px;text-transform:uppercase;font-weight:600}
         .row-2{display:flex;gap:10px}.row-2 > *{flex:1;min-width:0}
         .section-title{font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--borda)}
+        .matricula-details{border:1px solid var(--borda);border-radius:12px;margin-bottom:12px;overflow:hidden}
+        .matricula-details[open]{border-color:#d62bc5}
+        .matricula-summary{cursor:pointer;font-size:13px;font-weight:700;color:#d62bc5;list-style:none;padding:12px 15px;background:rgba(214,43,197,.07);display:flex;align-items:center;gap:8px;user-select:none}
+        .matricula-summary::-webkit-details-marker{display:none}
+        .matricula-summary::after{content:'▼';margin-left:auto;font-size:10px;transition:transform .3s;color:var(--cinza)}
+        .matricula-details[open] .matricula-summary::after{transform:rotate(180deg)}
+        .matricula-details > div{padding:0 15px 15px}
+        .summary-hint{font-size:11px;color:var(--cinza);font-weight:400;margin-left:4px}
     </style>
 </head>
 <body>
@@ -392,14 +400,32 @@ try {
             <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px">Data da Aula</label>
             <input type="date" name="data_presenca" id="dataPresenca" value="<?= date('Y-m-d') ?>" required style="margin-bottom:15px">
             <div id="listaAlunos" style="margin-bottom:15px;display:none">
-                <div style="font-size:12px;color:var(--cinza);margin-bottom:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px"><i class="fas fa-users"></i> Alunos da Turma</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div style="font-size:12px;color:var(--cinza);text-transform:uppercase;font-weight:800;letter-spacing:1px">
+                        <i class="fas fa-users" style="color:#2ecc71"></i> Alunos da Turma
+                        <span id="contadorAlunos" style="background:rgba(46,204,113,.2);color:#2ecc71;border:1px solid #2ecc71;border-radius:20px;padding:2px 10px;font-size:11px;margin-left:8px">0</span>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button type="button" onclick="selecionarTodos(true)" style="background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer"><i class="fas fa-check-square"></i> Todos</button>
+                        <button type="button" onclick="selecionarTodos(false)" style="background:rgba(255,68,68,.1);color:#ff4444;border:1px solid #ff4444;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer"><i class="fas fa-square"></i> Nenhum</button>
+                    </div>
+                </div>
+                <div id="alunosContainer">
                 <?php foreach ($alunas as $a): ?>
                 <label id="la-<?= (int)$a['id'] ?>" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.02);border:1px solid var(--borda);padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;transition:.3s" class="aluno-check-row" data-aluno-id="<?= (int)$a['id'] ?>">
-                    <input type="checkbox" name="presentes[]" value="<?= (int)$a['id'] ?>" style="width:18px;height:18px;margin:0;accent-color:#2ecc71" <?= in_array((int)$a['id'], $presencas_hoje) ? 'checked' : '' ?>>
-                    <span style="flex:1;font-weight:600;font-size:14px"><?= e($a['nome']) ?></span>
-                    <span style="font-size:11px;color:var(--cinza)"><?= e($a['turmas_nomes'] ?? '') ?></span>
+                    <input type="checkbox" name="presentes[]" value="<?= (int)$a['id'] ?>" style="width:20px;height:20px;margin:0;accent-color:#2ecc71;flex-shrink:0" <?= in_array((int)$a['id'], $presencas_hoje) ? 'checked' : '' ?>>
+                    <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2ecc71,#11998e);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#000;flex-shrink:0;text-transform:uppercase"><?= mb_substr(e($a['nome']), 0, 1) ?></div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= e($a['nome']) ?></div>
+                        <?php if (!empty($a['turmas_nomes'])): ?>
+                        <div style="font-size:11px;color:var(--cinza);margin-top:2px"><i class="fas fa-layer-group" style="color:#7b2cbf;margin-right:3px"></i><?= e($a['turmas_nomes']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <i class="fas fa-check-circle" style="color:#2ecc71;font-size:16px;opacity:0;transition:.2s" class="check-icon"></i>
                 </label>
                 <?php endforeach; ?>
+                </div>
+                <div id="semAlunos" style="display:none;text-align:center;padding:20px;color:var(--cinza);font-size:13px"><i class="fas fa-user-slash" style="font-size:24px;display:block;margin-bottom:8px;color:#333"></i>Nenhum aluno nesta turma</div>
             </div>
             <button type="submit" id="btnChamada" class="btn-submit" style="display:none;background:linear-gradient(90deg,#11998e,#38ef7d);box-shadow:0 5px 15px rgba(56,239,125,.3);color:#000">
                 <i class="fas fa-check-double"></i> Salvar Chamada
@@ -587,53 +613,64 @@ try {
                     <option value="<?= (int)$mt['id'] ?>"><?= e($mt['nome']) ?><?= $mt['dia_semana'] ? ' — ' . e($mt['dia_semana'] . ' ' . $mt['horario']) : '' ?></option>
                 <?php endforeach; ?>
             </select>
-            <div class="section-title"><i class="fas fa-notes-medical"></i> Ficha Médica Muay Thai</div>
-            <div class="row-2">
-                <div>
-                    <span class="ficha-label">Data de Nascimento</span>
-                    <input type="date" name="data_nascimento">
-                </div>
-                <div>
-                    <span class="ficha-label">Tipo Sanguíneo</span>
-                    <select name="tipo_sanguineo">
-                        <option value="">Selecione</option>
-                        <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $ts): ?>
-                            <option value="<?= $ts ?>"><?= $ts ?></option>
-                        <?php endforeach; ?>
+
+            <details class="matricula-details">
+                <summary class="matricula-summary"><i class="fas fa-notes-medical"></i> Ficha Médica Muay Thai <span class="summary-hint">(opcional — clique para expandir)</span></summary>
+                <div style="padding-top:12px">
+                    <div class="row-2">
+                        <div>
+                            <span class="ficha-label">Data de Nascimento</span>
+                            <input type="date" name="data_nascimento">
+                        </div>
+                        <div>
+                            <span class="ficha-label">Tipo Sanguíneo</span>
+                            <select name="tipo_sanguineo">
+                                <option value="">Selecione</option>
+                                <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $ts): ?>
+                                    <option value="<?= $ts ?>"><?= $ts ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row-2">
+                        <div>
+                            <span class="ficha-label">Peso (kg)</span>
+                            <input type="number" step="0.1" name="peso" placeholder="Ex: 65.5">
+                        </div>
+                        <div>
+                            <span class="ficha-label">Altura (cm)</span>
+                            <input type="number" step="0.1" name="altura" placeholder="Ex: 168">
+                        </div>
+                    </div>
+                    <span class="ficha-label">Nível de Experiência</span>
+                    <select name="nivel_experiencia">
+                        <option value="iniciante">Iniciante</option>
+                        <option value="intermediario">Intermediário</option>
+                        <option value="avancado">Avançado</option>
                     </select>
+                    <span class="ficha-label">Objetivo do Treino</span>
+                    <textarea name="objetivo_treino" rows="2" placeholder="Ex: Perder peso, competição, autodefesa..."></textarea>
+                    <span class="ficha-label">Restrições Médicas</span>
+                    <textarea name="restricoes_medicas" rows="2" placeholder="Ex: Dor lombar, asma leve..."></textarea>
+                    <span class="ficha-label">Doenças Crônicas</span>
+                    <textarea name="doencas_cronicas" rows="2" placeholder="Ex: Hipertensão, diabetes..."></textarea>
+                    <span class="ficha-label">Medicamentos em Uso</span>
+                    <textarea name="medicamentos_uso" rows="2" placeholder="Ex: Losartana, metformina..."></textarea>
+                    <span class="ficha-label">Histórico de Lesões</span>
+                    <textarea name="historico_lesoes" rows="2" placeholder="Ex: Fratura no tornozelo em 2022..."></textarea>
                 </div>
-            </div>
-            <div class="row-2">
-                <div>
-                    <span class="ficha-label">Peso (kg)</span>
-                    <input type="number" step="0.1" name="peso" placeholder="Ex: 65.5">
+            </details>
+
+            <details class="matricula-details">
+                <summary class="matricula-summary"><i class="fas fa-phone-alt"></i> Contato de Emergência <span class="summary-hint">(opcional — clique para expandir)</span></summary>
+                <div style="padding-top:12px">
+                    <div class="row-2">
+                        <input type="text" name="emergencia_nome" placeholder="Nome do Contato">
+                        <input type="text" name="emergencia_telefone" placeholder="Telefone de Emergência">
+                    </div>
                 </div>
-                <div>
-                    <span class="ficha-label">Altura (cm)</span>
-                    <input type="number" step="0.1" name="altura" placeholder="Ex: 168">
-                </div>
-            </div>
-            <span class="ficha-label">Nível de Experiência</span>
-            <select name="nivel_experiencia">
-                <option value="iniciante">Iniciante</option>
-                <option value="intermediario">Intermediário</option>
-                <option value="avancado">Avançado</option>
-            </select>
-            <span class="ficha-label">Objetivo do Treino</span>
-            <textarea name="objetivo_treino" rows="2" placeholder="Ex: Perder peso, competição, autodefesa..."></textarea>
-            <span class="ficha-label">Restrições Médicas</span>
-            <textarea name="restricoes_medicas" rows="2" placeholder="Ex: Dor lombar, asma leve..."></textarea>
-            <span class="ficha-label">Doenças Crônicas</span>
-            <textarea name="doencas_cronicas" rows="2" placeholder="Ex: Hipertensão, diabetes..."></textarea>
-            <span class="ficha-label">Medicamentos em Uso</span>
-            <textarea name="medicamentos_uso" rows="2" placeholder="Ex: Losartana, metformina..."></textarea>
-            <span class="ficha-label">Histórico de Lesões</span>
-            <textarea name="historico_lesoes" rows="2" placeholder="Ex: Fratura no tornozelo em 2022..."></textarea>
-            <div class="section-title"><i class="fas fa-phone-alt"></i> Contato de Emergência</div>
-            <div class="row-2">
-                <input type="text" name="emergencia_nome" placeholder="Nome do Contato">
-                <input type="text" name="emergencia_telefone" placeholder="Telefone de Emergência">
-            </div>
+            </details>
+
             <button type="submit" class="btn-submit"><i class="fas fa-plus"></i> Cadastrar</button>
         </form>
     </div>
@@ -771,6 +808,8 @@ function carregarAlunos() {
     var turmaId = document.getElementById('selectTurma').value;
     var lista = document.getElementById('listaAlunos');
     var btn   = document.getElementById('btnChamada');
+    var contador = document.getElementById('contadorAlunos');
+    var semAlunos = document.getElementById('semAlunos');
     if (!turmaId) {
         lista.style.display = 'none';
         btn.style.display   = 'none';
@@ -782,14 +821,33 @@ function carregarAlunos() {
     fetch('treinador.php?get_alunos_turma=1&turma_id=' + turmaId)
         .then(function(r){ return r.json(); })
         .then(function(ids) {
+            var count = 0;
             document.querySelectorAll('.aluno-check-row').forEach(function(row) {
                 var aid = parseInt(row.getAttribute('data-aluno-id'));
-                row.style.display = ids.includes(aid) ? 'flex' : 'none';
+                if (ids.includes(aid)) {
+                    row.style.display = 'flex';
+                    count++;
+                } else {
+                    row.style.display = 'none';
+                }
             });
+            contador.textContent = count;
+            semAlunos.style.display = count === 0 ? 'block' : 'none';
+            btn.style.display = count > 0 ? 'block' : 'none';
         })
         .catch(function() {
-            document.querySelectorAll('.aluno-check-row').forEach(function(r){ r.style.display='flex'; });
+            var count = 0;
+            document.querySelectorAll('.aluno-check-row').forEach(function(r){ r.style.display='flex'; count++; });
+            contador.textContent = count;
+            semAlunos.style.display = 'none';
         });
+}
+function selecionarTodos(marcar) {
+    document.querySelectorAll('.aluno-check-row').forEach(function(row) {
+        if (row.style.display !== 'none') {
+            row.querySelector('input[type="checkbox"]').checked = marcar;
+        }
+    });
 }
 
 if ('serviceWorker' in navigator) {
