@@ -100,10 +100,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 8. Adicionar Turma
     if ($acao === 'add_turma') {
-        $prof_id = !empty($_POST['professor_id']) ? (int)$_POST['professor_id'] : null;
-        $hor_id  = !empty($_POST['horario_id'])   ? (int)$_POST['horario_id']   : null;
-        $pdo->prepare("INSERT INTO turmas (nome, professor_id, horario_id) VALUES (?,?,?)")
-            ->execute([$_POST['nome'] ?? '', $prof_id, $hor_id]);
+        $hor_id  = !empty($_POST['horario_id']) ? (int)$_POST['horario_id'] : null;
+        $pdo->prepare("INSERT INTO turmas (nome, horario_id) VALUES (?,?)")
+            ->execute([$_POST['nome'] ?? '', $hor_id]);
+        $turma_id = (int)$pdo->lastInsertId();
+        if (!empty($_POST['professor_ids']) && is_array($_POST['professor_ids'])) {
+            $stmtTP = $pdo->prepare("INSERT IGNORE INTO turma_professores (turma_id, professor_id) VALUES (?,?)");
+            foreach ($_POST['professor_ids'] as $pid) {
+                $stmtTP->execute([$turma_id, (int)$pid]);
+            }
+        }
         $msg_sucesso = 'Turma criada com sucesso!';
     }
 
@@ -164,7 +170,7 @@ $professores = $pdo->query("SELECT id, nome FROM usuarios WHERE tipo IN ('profes
 
 $turmas = [];
 try {
-    $turmas = $pdo->query("SELECT t.*, u.nome as prof_nome, h.dia_semana, h.horario FROM turmas t LEFT JOIN usuarios u ON t.professor_id = u.id LEFT JOIN horarios_treino h ON t.horario_id = h.id WHERE t.ativo = 1")->fetchAll();
+    $turmas = $pdo->query("SELECT t.*, GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR ', ') as professores_nomes, h.dia_semana, h.horario FROM turmas t LEFT JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN usuarios u ON tp.professor_id = u.id LEFT JOIN horarios_treino h ON t.horario_id = h.id WHERE t.ativo = 1 GROUP BY t.id ORDER BY t.nome")->fetchAll();
 } catch (Exception $e) {}
 
 // Alunos com status de pagamento
@@ -523,12 +529,15 @@ try {
             <form method="POST" style="margin-bottom:20px">
                 <input type="hidden" name="acao" value="add_turma">
                 <input type="text" name="nome" placeholder="Nome da Turma (Ex: Turma A — Manhã)" required>
-                <select name="professor_id">
-                    <option value="">Sem professor alocado</option>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:8px"><i class="fas fa-user-tie"></i> Professores (selecione um ou mais)</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
                     <?php foreach ($professores as $pr): ?>
-                        <option value="<?= (int)$pr['id'] ?>"><?= e($pr['nome']) ?></option>
+                        <label style="display:flex;align-items:center;gap:6px;background:#050308;border:1px solid var(--borda);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--cinza)">
+                            <input type="checkbox" name="professor_ids[]" value="<?= (int)$pr['id'] ?>" style="width:auto;margin:0"> <?= e($pr['nome']) ?>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                    <?php if (empty($professores)): ?><p style="font-size:12px;color:var(--cinza);margin:0">Nenhum professor/treinador cadastrado.</p><?php endif; ?>
+                </div>
                 <select name="horario_id">
                     <option value="">Sem horário vinculado</option>
                     <?php foreach ($horarios as $h): ?>
@@ -545,8 +554,8 @@ try {
                     <div>
                         <span class="item-nome"><?= e($t['nome']) ?></span><br>
                         <span style="font-size:12px;color:var(--cinza)">
-                            <i class="fas fa-user-tie" style="color:#d62bc5"></i> <?= e($t['prof_nome'] ?? 'Sem professor') ?> |
-                            <i class="fas fa-clock" style="color:#7b2cbf"></i> <?= e(($t['dia_semana'] ?? '') . ' ' . ($t['horario'] ?? '')) ?>
+                            <i class="fas fa-user-tie" style="color:#d62bc5"></i> <?= e($t['professores_nomes'] ?? 'Sem professor') ?> |
+                            <i class="fas fa-clock" style="color:#7b2cbf"></i> <?= e(trim(($t['dia_semana'] ?? '') . ' ' . ($t['horario'] ?? ''))) ?: '—' ?>
                         </span>
                     </div>
                     <form method="POST">

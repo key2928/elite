@@ -71,6 +71,14 @@ try {
     $treinadoras = [];
     try { $treinadoras = $pdo->query("SELECT nome, telefone FROM usuarios WHERE tipo = 'treinador'")->fetchAll(); } catch (Exception $ex) {}
 
+    // Turmas do aluno com professores e horários
+    $minhas_turmas_aluno = [];
+    try {
+        $stmtTA = $pdo->prepare("SELECT t.nome, h.dia_semana, h.horario, GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR ', ') as professores_nomes FROM aluno_turmas at_aluno JOIN turmas t ON at_aluno.turma_id = t.id LEFT JOIN horarios_treino h ON t.horario_id = h.id LEFT JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN usuarios u ON tp.professor_id = u.id WHERE at_aluno.aluno_id = ? GROUP BY t.id ORDER BY t.nome");
+        $stmtTA->execute([$id]);
+        $minhas_turmas_aluno = $stmtTA->fetchAll();
+    } catch (Exception $ex) {}
+
 } catch (Exception $ex) {
     die("<div style='background:#111;color:#ff4444;padding:20px'><b>Erro:</b> " . e($ex->getMessage()) . "</div>");
 }
@@ -267,6 +275,24 @@ try {
             </div>
         </div>
     </div>
+
+    <?php if (!empty($minhas_turmas_aluno)): ?>
+    <!-- Minha Turma -->
+    <div class="card">
+        <h3 class="card-titulo"><i class="fas fa-layer-group"></i> Minha Turma</h3>
+        <?php foreach ($minhas_turmas_aluno as $mt): ?>
+            <div style="background:rgba(255,255,255,.02);border:1px solid var(--borda);padding:16px;border-radius:12px;margin-bottom:12px">
+                <div style="font-weight:800;font-size:15px;margin-bottom:6px"><?= e($mt['nome']) ?></div>
+                <?php if (!empty($mt['dia_semana'])): ?>
+                    <div style="font-size:13px;color:var(--cinza);margin-bottom:4px"><i class="fas fa-clock" style="color:#7b2cbf;margin-right:6px"></i> <?= e($mt['dia_semana'] . ' — ' . $mt['horario']) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($mt['professores_nomes'])): ?>
+                    <div style="font-size:13px;color:var(--cinza)"><i class="fas fa-user-tie" style="color:#d62bc5;margin-right:6px"></i> <?= e($mt['professores_nomes']) ?></div>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <!-- Comunidade -->
     <div class="card">

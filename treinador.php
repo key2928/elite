@@ -68,6 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ($_POST['emergencia_telefone'] ?: null), ($_POST['objetivo_treino'] ?: null),
                     ($_POST['nivel_experiencia'] ?: 'iniciante'), ($_POST['restricoes_medicas'] ?: null),
                 ]);
+            $novo_id = (int)$pdo->lastInsertId();
+            if (!empty($_POST['turma_id'])) {
+                $pdo->prepare("INSERT IGNORE INTO aluno_turmas (aluno_id, turma_id) VALUES (?,?)")
+                    ->execute([$novo_id, (int)$_POST['turma_id']]);
+            }
             $msg_sucesso = 'Aluno(a) cadastrado(a) com sucesso!';
         } catch (PDOException $e) {
             $msg_erro = 'Erro: Este e-mail já está registado.';
@@ -103,7 +108,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$alunas = $pdo->query("SELECT * FROM usuarios WHERE tipo = 'aluno' ORDER BY nome")->fetchAll();
+$prof_id = (int)$_SESSION['usuario_id'];
+
+// Turmas deste professor/treinador
+$minhas_turmas = [];
+try {
+    $stmtT = $pdo->prepare("SELECT t.id, t.nome, h.dia_semana, h.horario FROM turmas t JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN horarios_treino h ON t.horario_id = h.id WHERE tp.professor_id = ? AND t.ativo = 1 ORDER BY t.nome");
+    $stmtT->execute([$prof_id]);
+    $minhas_turmas = $stmtT->fetchAll();
+} catch (Exception $e) {}
+
+// Alunos apenas das turmas deste professor/treinador
+$alunas = [];
+try {
+    $stmtA = $pdo->prepare("SELECT DISTINCT u.*, GROUP_CONCAT(t.nome ORDER BY t.nome SEPARATOR ', ') as turmas_nomes FROM usuarios u JOIN aluno_turmas at_aluno ON u.id = at_aluno.aluno_id JOIN turma_professores tp ON at_aluno.turma_id = tp.turma_id LEFT JOIN turmas t ON at_aluno.turma_id = t.id WHERE tp.professor_id = ? AND u.tipo = 'aluno' GROUP BY u.id ORDER BY u.nome");
+    $stmtA->execute([$prof_id]);
+    $alunas = $stmtA->fetchAll();
+} catch (Exception $e) {
+    $alunas = $pdo->query("SELECT * FROM usuarios WHERE tipo = 'aluno' ORDER BY nome")->fetchAll();
+}
+
 $planos = $pdo->query("SELECT * FROM planos_tabela WHERE ativo = 1")->fetchAll();
 
 $missao_atual = false;
@@ -111,9 +135,14 @@ try { $missao_atual = $pdo->query("SELECT * FROM missoes_semana WHERE status = '
 
 $historico_pagamentos = [];
 try {
-    $rows = $pdo->query("SELECT p.*, pl.nome_plano FROM pagamentos p JOIN planos_tabela pl ON p.plano_id = pl.id ORDER BY p.data_pagamento DESC LIMIT 500")->fetchAll();
-    foreach ($rows as $row) {
-        $historico_pagamentos[(int)$row['aluna_id']][] = $row;
+    $aluno_ids = array_column($alunas, 'id');
+    if (!empty($aluno_ids)) {
+        $in = implode(',', array_fill(0, count($aluno_ids), '?'));
+        $stmtHP = $pdo->prepare("SELECT p.*, pl.nome_plano FROM pagamentos p JOIN planos_tabela pl ON p.plano_id = pl.id WHERE p.aluna_id IN ($in) ORDER BY p.data_pagamento DESC LIMIT 500");
+        $stmtHP->execute($aluno_ids);
+        foreach ($stmtHP->fetchAll() as $row) {
+            $historico_pagamentos[(int)$row['aluna_id']][] = $row;
+        }
     }
 } catch (Exception $e) {}
 
@@ -236,6 +265,9 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
                     <div class="aluna-info"><i class="fas fa-envelope" style="color:#d62bc5;margin-right:5px"></i> <?= e($a['email']) ?></div>
                     <div class="aluna-info"><i class="fab fa-whatsapp" style="color:#2ecc71;margin-right:5px"></i> <?= e($a['telefone'] ?? 'Sem número') ?></div>
                     <div class="aluna-info"><i class="fas fa-hand-rock" style="color:#FF8C00;margin-right:5px"></i> Treinos: <strong><?= (int)($a['treinos_concluidos'] ?? 0) ?></strong></div>
+                    <?php if (!empty($a['turmas_nomes'])): ?>
+                        <div class="aluna-info"><i class="fas fa-layer-group" style="color:#7b2cbf;margin-right:5px"></i> <?= e($a['turmas_nomes']) ?></div>
+                    <?php endif; ?>
                     <?php if (!empty($a['restricoes_medicas']) || !empty($a['doencas_cronicas'])): ?>
                         <div class="alerta-saude">
                             <strong><i class="fas fa-notes-medical"></i> Atenção Médica:</strong><br>
@@ -367,6 +399,13 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
             <input type="email" name="email" placeholder="E-mail de Acesso" required>
             <input type="text" name="telefone" placeholder="WhatsApp (Ex: 64999999999)">
             <input type="password" name="senha" placeholder="Senha Provisória" required>
+            <div class="section-title"><i class="fas fa-layer-group"></i> Turma</div>
+            <select name="turma_id">
+                <option value="">Sem turma (opcional)</option>
+                <?php foreach ($minhas_turmas as $mt): ?>
+                    <option value="<?= (int)$mt['id'] ?>"><?= e($mt['nome']) ?><?= $mt['dia_semana'] ? ' — ' . e($mt['dia_semana'] . ' ' . $mt['horario']) : '' ?></option>
+                <?php endforeach; ?>
+            </select>
             <div class="section-title"><i class="fas fa-notes-medical"></i> Ficha Médica Muay Thai</div>
             <div class="row-2">
                 <div>
