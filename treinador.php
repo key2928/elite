@@ -19,7 +19,8 @@ if (isset($_GET['get_alunos_turma'])) {
     echo json_encode(array_map('intval', $rows));
     exit;
 }
-
+
+
 function calcularDiasTreinados(string $mes, string $dia_semana): array {
     $map = [
         'segunda' => 1, 'monday' => 1,
@@ -364,6 +365,14 @@ try {
         .ficha-label{font-size:11px;color:var(--cinza);display:block;margin-bottom:3px;text-transform:uppercase;font-weight:600}
         .row-2{display:flex;gap:10px}.row-2 > *{flex:1;min-width:0}
         .section-title{font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--borda)}
+        .matricula-details{border:1px solid var(--borda);border-radius:12px;margin-bottom:12px;overflow:hidden}
+        .matricula-details[open]{border-color:#d62bc5}
+        .matricula-summary{cursor:pointer;font-size:13px;font-weight:700;color:#d62bc5;list-style:none;padding:12px 15px;background:rgba(214,43,197,.07);display:flex;align-items:center;gap:8px;user-select:none}
+        .matricula-summary::-webkit-details-marker{display:none}
+        .matricula-summary::after{content:'▼';margin-left:auto;font-size:10px;transition:transform .3s;color:var(--cinza)}
+        .matricula-details[open] .matricula-summary::after{transform:rotate(180deg)}
+        .matricula-details > div{padding:0 15px 15px}
+        .summary-hint{font-size:11px;color:var(--cinza);font-weight:400;margin-left:4px}
     </style>
 </head>
 <body>
@@ -414,6 +423,8 @@ try {
                     </div>
                 </label>
                 <?php endforeach; ?>
+                </div>
+                <div id="semAlunos" style="display:none;text-align:center;padding:20px;color:var(--cinza);font-size:13px"><i class="fas fa-user-slash" style="font-size:24px;display:block;margin-bottom:8px;color:#333"></i>Nenhum aluno nesta turma</div>
             </div>
             <button type="submit" id="btnChamada" class="btn-submit" style="display:none;background:linear-gradient(90deg,#11998e,#38ef7d);box-shadow:0 5px 15px rgba(56,239,125,.3);color:#000">
                 <i class="fas fa-check-double"></i> Salvar Chamada
@@ -793,6 +804,8 @@ function carregarAlunos() {
     var turmaId = document.getElementById('selectTurma').value;
     var lista = document.getElementById('listaAlunos');
     var btn   = document.getElementById('btnChamada');
+    var contador = document.getElementById('contadorAlunos');
+    var semAlunos = document.getElementById('semAlunos');
     if (!turmaId) {
         lista.style.display = 'none';
         btn.style.display   = 'none';
@@ -821,6 +834,13 @@ function carregarAlunos() {
             document.getElementById('contadorAlunos').textContent = count;
             atualizarContador();
         });
+}
+function selecionarTodos(marcar) {
+    document.querySelectorAll('.aluno-check-row').forEach(function(row) {
+        if (row.style.display !== 'none') {
+            row.querySelector('input[type="checkbox"]').checked = marcar;
+        }
+    });
 }
 
 function atualizarContador() {
