@@ -25,7 +25,8 @@ imagesavealpha($img, true);
 // Colors
 $bg1    = imagecolorallocate($img, 11,   7,  16);  // #0b0710
 $bg2    = imagecolorallocate($img, 26,  10,  46);  // #1a0a2e
-$pink   = imagecolorallocate($img, 214,  43, 197);  // #d62bc5
+$pink   = imagecolorallocate($img, 232,  50, 154);  // #e8329a  (hot pink glove)
+$pinkLt = imagecolorallocate($img, 255, 133, 200);  // #ff85c8  (light pink highlight)
 $purple = imagecolorallocate($img, 123,  44, 191);  // #7b2cbf
 $white  = imagecolorallocate($img,  255,255, 255);
 $gray   = imagecolorallocate($img,  180, 168, 201);
@@ -52,33 +53,47 @@ function roundedRect($img, $x, $y, $w, $h, $r, $color) {
 
 $sc = $size / 192; // scale factor
 
-// Draw gloves
-$gx1 = (int)(35  * $sc); $gy = (int)(55  * $sc);
-$gx2 = (int)(110 * $sc);
-$gw  = (int)(60  * $sc);
-$gh  = (int)(75  * $sc);
-$gr  = (int)(25  * $sc);
-roundedRect($img, $gx1, $gy, $gw, $gh, $gr, $pink);
-roundedRect($img, $gx2, $gy, $gw, $gh, $gr, $purple);
+// Draw single centered glove (main fist block)
+$gx = (int)(46  * $sc);
+$gy = (int)(38  * $sc);
+$gw = (int)(100 * $sc);
+$gh = (int)(82  * $sc);
+$gr = (int)(28  * $sc);
+roundedRect($img, $gx, $gy, $gw, $gh, $gr, $pink);
 
 // Knuckle highlight
-$kw = (int)(50 * $sc); $kh = (int)(18 * $sc); $kr = (int)(9 * $sc);
-$kc = imagecolorallocatealpha($img, 255, 255, 255, 70);
-roundedRect($img, $gx1 + (int)(5*$sc), $gy + (int)(5*$sc), $kw, $kh, $kr, $kc);
-roundedRect($img, $gx2 + (int)(5*$sc), $gy + (int)(5*$sc), $kw, $kh, $kr, $kc);
+$kw = (int)(84 * $sc); $kh = (int)(28 * $sc); $kr = (int)(14 * $sc);
+$kc = imagecolorallocatealpha($img, 255, 133, 200, 55);
+roundedRect($img, $gx + (int)(8*$sc), $gy + (int)(5*$sc), $kw, $kh, $kr, $kc);
 
-// Text "ET"
-$font = 5;
-$textW = imagefontwidth($font) * 2;
+// Thumb
+$tc = imagecolorallocatealpha($img, 232, 50, 154, 20);
+imagefilledellipse($img, $gx - (int)(6*$sc), $gy + (int)(22*$sc), (int)(36*$sc), (int)(26*$sc), $pink);
+imagefilledellipse($img, $gx - (int)(6*$sc), $gy + (int)(22*$sc), (int)(24*$sc), (int)(17*$sc), $pinkLt);
+
+// Cuff / wrist band
+$cx = (int)(62  * $sc);
+$cy = (int)(114 * $sc);
+$cw = (int)(68  * $sc);
+$ch = (int)(40  * $sc);
+$cr = (int)(11  * $sc);
+roundedRect($img, $cx, $cy, $cw, $ch, $cr, $purple);
+// Cuff stripe
+$stripe = imagecolorallocatealpha($img, 255, 255, 255, 90);
+imagefilledrectangle($img, $cx, $cy + (int)(10*$sc), $cx + $cw, $cy + (int)(20*$sc), $stripe);
+
+// Text "ELITE THAI"
+$font = 4;
+$textW = imagefontwidth($font) * strlen('ELITE');
 $textX = (int)(($size - $textW) / 2);
-imagestring($img, $font, $textX, (int)(145 * $sc), 'ET', $pink);
+imagestring($img, $font, $textX, (int)(158 * $sc), 'ELITE', $pinkLt);
 
 // Text "GIRLS"
 $font2 = 3;
 $txt2 = 'GIRLS';
 $tw2  = imagefontwidth($font2) * strlen($txt2);
 $tx2  = (int)(($size - $tw2) / 2);
-imagestring($img, $font2, $tx2, (int)(162 * $sc), $txt2, $white);
+imagestring($img, $font2, $tx2, (int)(174 * $sc), $txt2, $white);
 
 imagepng($img);
 imagedestroy($img);
