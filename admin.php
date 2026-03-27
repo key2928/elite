@@ -196,7 +196,13 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Elite Girls Admin</title>
+    <title>Elite Thai Girls | Admin</title>
+    <meta name="theme-color" content="#d62bc5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Elite Thai Girls">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -251,7 +257,7 @@ try {
 <div class="app">
 
     <div class="header">
-        <h1><span>Elite</span> Girls | Admin</h1>
+        <h1><img src="icon.svg" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;margin-right:6px"><span>Elite Thai</span> Girls | Admin</h1>
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 
@@ -660,6 +666,9 @@ function toggleEditPlano(id) {
 function toggleTurmaField() {
     var tipo = document.getElementById('tipoSelect').value;
     document.getElementById('turmaField').style.display = tipo === 'aluno' ? 'block' : 'none';
+}
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
 }
 </script>
 </body>

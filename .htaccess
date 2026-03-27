@@ -1,4 +1,6 @@
 RewriteEngine On
+RewriteRule ^icon-192\.png$ icon-gen.php?s=192 [L,QSA]
+RewriteRule ^icon-512\.png$ icon-gen.php?s=512 [L,QSA]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^.*$ index.php [L,QSA]

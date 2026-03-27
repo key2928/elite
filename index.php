@@ -88,62 +88,119 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minha Jornada - Elite Thai</title>
+    <title>Elite Thai Girls</title>
+    <meta name="description" content="Academia Elite Thai Girls — Muay Thai & Fitness">
+    <meta name="theme-color" content="#d62bc5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Elite Thai Girls">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root{--bg:#09060f;--card:#140d1c;--pink:linear-gradient(90deg,#d62bc5,#7b2cbf);--glow:rgba(214,43,197,.35);--txt:#f8f9fa;--cinza:#b5a8c9;--borda:#2a1b3d}
         *{box-sizing:border-box}
         body{background:var(--bg);color:var(--txt);font-family:'Poppins',sans-serif;margin:0;padding:0}
-        .app{max-width:600px;margin:0 auto;padding:20px;padding-bottom:80px}
+        .app{max-width:600px;margin:0 auto;padding:16px;padding-bottom:90px}
         @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-        .card{background:var(--card);border-radius:20px;padding:24px;margin-bottom:20px;border:1px solid var(--borda);box-shadow:0 10px 30px rgba(0,0,0,.5);animation:fadeUp .6s ease-out forwards;opacity:0}
+        .card{background:var(--card);border-radius:20px;padding:20px;margin-bottom:16px;border:1px solid var(--borda);box-shadow:0 10px 30px rgba(0,0,0,.5);animation:fadeUp .6s ease-out forwards;opacity:0}
         .card:nth-child(1){animation-delay:.1s}.card:nth-child(2){animation-delay:.15s}.card:nth-child(3){animation-delay:.2s}.card:nth-child(4){animation-delay:.25s}.card:nth-child(5){animation-delay:.3s}.card:nth-child(6){animation-delay:.35s}.card:nth-child(7){animation-delay:.4s}.card:nth-child(8){animation-delay:.45s}.card:nth-child(9){animation-delay:.5s}.card:nth-child(10){animation-delay:.55s}
         .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;margin-top:10px}
-        .user-info h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.5px}
+        .user-info h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.5px}
         .badge-rank{background:var(--pink);color:#fff;padding:6px 14px;border-radius:20px;font-weight:600;font-size:12px;display:inline-block;margin-top:8px;box-shadow:0 4px 15px var(--glow);text-transform:uppercase;letter-spacing:1px}
-        .btn-sair{background:#2a1b3d;color:#ff4d4d;width:45px;height:45px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px;transition:.3s}
-        .card-titulo{margin:0 0 20px;font-size:15px;text-transform:uppercase;font-weight:800;display:flex;align-items:center;gap:10px;letter-spacing:1px}
+        .btn-sair{background:#2a1b3d;color:#ff4d4d;width:45px;height:45px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px;transition:.3s;flex-shrink:0}
+        .card-titulo{margin:0 0 16px;font-size:14px;text-transform:uppercase;font-weight:800;display:flex;align-items:center;gap:10px;letter-spacing:1px}
         .card-titulo i{background:var(--pink);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:20px}
-        .luva{width:45px;height:45px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;transition:.3s}
+        .luva{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.3s}
         .luva-on{background:var(--pink);box-shadow:0 5px 15px var(--glow);color:#fff;transform:scale(1.05)}
         .luva-off{background:rgba(255,255,255,.03);border:1px dashed #555;color:#444}
-        .input-vip{width:100%;padding:16px;border-radius:12px;background:rgba(0,0,0,.4);border:1px solid rgba(56,239,125,.5);color:#38ef7d;font-weight:800;font-size:12px;text-align:center;letter-spacing:.5px;outline:none;margin-bottom:0}
-        .btn-copiar{background:#38ef7d;color:#000;border:none;padding:0 18px;border-radius:12px;font-weight:800;cursor:pointer;transition:.3s;box-shadow:0 5px 15px rgba(56,239,125,.3);display:flex;align-items:center}
-        .btn-indicar{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;text-decoration:none;padding:16px;border-radius:15px;font-weight:800;text-transform:uppercase;font-size:14px;width:100%;border:none;cursor:pointer;transition:.3s;box-shadow:0 10px 20px rgba(56,239,125,.3)}
-        .ficha-textarea{width:100%;background:#050308;border:1px solid var(--borda);color:#fff;padding:15px;border-radius:12px;font-family:'Poppins',sans-serif;font-size:13px;resize:vertical;margin-bottom:15px;transition:.3s}
+        .input-vip{width:100%;padding:14px;border-radius:12px;background:rgba(0,0,0,.4);border:1px solid rgba(56,239,125,.5);color:#38ef7d;font-weight:800;font-size:11px;text-align:center;letter-spacing:.5px;outline:none;margin-bottom:0}
+        .btn-copiar{background:#38ef7d;color:#000;border:none;padding:0 16px;border-radius:12px;font-weight:800;cursor:pointer;transition:.3s;box-shadow:0 5px 15px rgba(56,239,125,.3);display:flex;align-items:center}
+        .btn-indicar{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;text-decoration:none;padding:14px;border-radius:15px;font-weight:800;text-transform:uppercase;font-size:13px;width:100%;border:none;cursor:pointer;transition:.3s;box-shadow:0 10px 20px rgba(56,239,125,.3)}
+        .ficha-textarea{width:100%;background:#050308;border:1px solid var(--borda);color:#fff;padding:14px;border-radius:12px;font-family:'Poppins',sans-serif;font-size:13px;resize:vertical;margin-bottom:12px;transition:.3s}
         .btn-salvar{background:var(--pink);color:#fff;border:none;width:100%;padding:14px;border-radius:10px;font-weight:800;text-transform:uppercase;font-size:13px;cursor:pointer;transition:.3s;box-shadow:0 5px 15px var(--glow)}
         .msg-ok{background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid #2ecc71;padding:12px;border-radius:8px;font-size:12px;text-align:center;margin-bottom:15px;font-weight:600}
         .btn-checkin{display:block;width:100%;text-align:center;background:#2a1b3d;color:#d62bc5;padding:12px;border-radius:8px;font-size:13px;font-weight:800;text-transform:uppercase;text-decoration:none;transition:.3s;cursor:pointer;border:1px solid #d62bc5}
-        .dias-semana{display:flex;justify-content:center;gap:15px;margin-bottom:25px;flex-wrap:wrap}
-        .dia{width:45px;height:45px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#555;transition:.3s;border:2px solid transparent}
+        .dias-semana{display:flex;justify-content:center;gap:12px;margin-bottom:25px;flex-wrap:wrap}
+        .dia{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#555;transition:.3s;border:2px solid transparent}
         .dia.ativo{background:var(--pink);color:#fff;box-shadow:0 5px 15px var(--glow);transform:scale(1.1);border-color:#fff}
         .xp-box{background:#050308;padding:18px;border-radius:15px;border:1px solid var(--borda)}
         .xp-texto{display:flex;justify-content:space-between;font-size:13px;color:var(--cinza);margin-bottom:12px;font-weight:600;text-transform:uppercase}
         .xp-barra{background:#2a1b3d;height:12px;border-radius:10px;overflow:hidden}
         .xp-fill{background:var(--pink);height:100%;border-radius:10px;box-shadow:0 0 10px var(--glow);transition:width 1s ease-in-out}
-        .btn-grupo{display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366;color:#fff;text-decoration:none;padding:16px;border-radius:12px;font-weight:800;text-transform:uppercase;font-size:14px;margin-bottom:25px;transition:.3s;box-shadow:0 5px 15px rgba(37,211,102,.3)}
-        .instrutora-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.03);padding:16px;border-radius:12px;border:1px solid var(--borda);text-decoration:none;color:#fff;transition:.3s;margin-bottom:12px}
-        .aviso{padding:16px;border-radius:12px;margin-bottom:12px;background:rgba(255,255,255,.03);border-left:4px solid #555;font-size:13px;line-height:1.6;color:var(--cinza)}
+        .btn-grupo{display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366;color:#fff;text-decoration:none;padding:14px;border-radius:12px;font-weight:800;text-transform:uppercase;font-size:13px;margin-bottom:20px;transition:.3s;box-shadow:0 5px 15px rgba(37,211,102,.3)}
+        .instrutora-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.03);padding:14px;border-radius:12px;border:1px solid var(--borda);text-decoration:none;color:#fff;transition:.3s;margin-bottom:12px}
+        .aviso{padding:14px;border-radius:12px;margin-bottom:12px;background:rgba(255,255,255,.03);border-left:4px solid #555;font-size:13px;line-height:1.6;color:var(--cinza)}
         .aviso.urgente{border-left-color:#ff4444;background:linear-gradient(90deg,rgba(255,68,68,.1),transparent)}
-        .grid-medalhas{display:grid;grid-template-columns:repeat(auto-fill,minmax(85px,1fr));gap:12px}
-        .medalha{background:rgba(255,255,255,.02);padding:15px 10px;text-align:center;border-radius:16px;border:1px solid var(--borda);transition:.3s}
-        .medalha-icone{font-size:34px;margin-bottom:10px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5))}
+        .grid-medalhas{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px}
+        .medalha{background:rgba(255,255,255,.02);padding:14px 8px;text-align:center;border-radius:16px;border:1px solid var(--borda);transition:.3s}
+        .medalha-icone{font-size:30px;margin-bottom:8px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5))}
         .medalha-nome{font-size:11px;font-weight:600;color:var(--cinza);line-height:1.3}
-        .plano-destaque{background:linear-gradient(135deg,rgba(214,43,197,.1),transparent);padding:22px;border-radius:16px;border:1px solid rgba(214,43,197,.3);margin-bottom:25px;position:relative;overflow:hidden}
-        .venc-data{font-size:26px;font-weight:800;display:block;margin-top:5px}
+        .plano-destaque{background:linear-gradient(135deg,rgba(214,43,197,.1),transparent);padding:20px;border-radius:16px;border:1px solid rgba(214,43,197,.3);margin-bottom:20px;position:relative;overflow:hidden}
+        .venc-data{font-size:24px;font-weight:800;display:block;margin-top:5px}
         .vence-ok{color:#2ecc71}.vence-perto{color:#f1c40f}.vence-passou{color:#ff4444}
         .hist-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px dashed var(--borda);font-size:13px;color:var(--cinza)}
         .hist-item:last-child{border-bottom:none}
+        /* Ficha de saúde collapsible */
+        .ficha-toggle{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;padding:4px 0}
+        .ficha-toggle .toggle-icon{width:32px;height:32px;border-radius:50%;background:rgba(214,43,197,.15);border:1px solid rgba(214,43,197,.4);display:flex;align-items:center;justify-content:center;color:#d62bc5;font-size:14px;transition:transform .3s,background .3s}
+        .ficha-toggle.aberto .toggle-icon{transform:rotate(180deg);background:rgba(214,43,197,.3)}
+        .ficha-campos{overflow:hidden;transition:max-height .4s ease,opacity .3s ease}
+        .ficha-campos.fechado{max-height:0!important;opacity:0;pointer-events:none}
+        /* Input styles for ficha */
+        .card input[type="date"],.card input[type="number"],.card input[type="text"],.card select{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--borda);background:#050308;color:#fff;font-family:'Poppins',sans-serif;font-size:13px;outline:none;transition:.3s;-webkit-appearance:none}
+        .card select option{background:#15111b}
+        /* PWA install banner */
+        #pwa-banner{display:none;position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,#1a0a2e,#2a1b3d);border-top:1px solid rgba(214,43,197,.4);padding:14px 20px;z-index:999;align-items:center;gap:12px;box-shadow:0 -5px 20px rgba(0,0,0,.4)}
+        #pwa-banner img{width:42px;height:42px;border-radius:10px;flex-shrink:0}
+        #pwa-banner .pwa-txt{flex:1;min-width:0}
+        #pwa-banner .pwa-txt strong{display:block;font-size:13px;color:#fff;font-weight:800}
+        #pwa-banner .pwa-txt span{font-size:11px;color:var(--cinza)}
+        #pwa-install-btn{background:var(--pink);color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+        #pwa-close-btn{color:#888;font-size:18px;background:none;border:none;cursor:pointer;flex-shrink:0;padding:4px}
+        /* Responsive layout improvements */
+        @media(max-width:400px){
+            .app{padding:12px;padding-bottom:90px}
+            .card{padding:16px;border-radius:16px}
+            .user-info h1{font-size:20px}
+            .venc-data{font-size:20px}
+        }
+        @media(min-width:768px){
+            body{background:radial-gradient(ellipse at 50% 20%,rgba(214,43,197,.12) 0%,var(--bg) 70%)}
+            .app{max-width:720px;padding:30px}
+            .card{padding:28px;border-radius:24px}
+        }
+        @media(min-width:1024px){
+            .app{max-width:860px}
+            #pwa-banner{left:50%;right:auto;transform:translateX(-50%);width:500px;border-radius:16px 16px 0 0}
+        }
     </style>
 </head>
 <body>
+
+<!-- PWA Install Banner -->
+<div id="pwa-banner">
+    <img src="icon.svg" alt="Elite Thai Girls">
+    <div class="pwa-txt">
+        <strong>Elite Thai Girls</strong>
+        <span>Instale o app e acesse mais rápido!</span>
+    </div>
+    <button id="pwa-install-btn"><i class="fas fa-download"></i> Instalar</button>
+    <button id="pwa-close-btn" onclick="fecharBanner()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+</div>
+
 <div class="app">
 
     <!-- Header -->
     <div class="header card" style="padding:20px;border-radius:25px">
         <div class="user-info">
-            <div style="font-size:12px;color:var(--cinza);text-transform:uppercase;font-weight:600;letter-spacing:1px">A Sua Jornada</div>
+            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;font-weight:600;letter-spacing:1px;display:flex;align-items:center;gap:6px">
+                <img src="icon.svg" alt="" style="width:18px;height:18px;border-radius:4px;vertical-align:middle">
+                Elite Thai Girls
+            </div>
             <h1><?= e(explode(' ', $aluna['nome'])[0]) ?></h1>
             <div class="badge-rank"><i class="fas fa-gem" style="margin-right:5px"></i> <?= $rank ?></div>
         </div>
@@ -180,61 +237,66 @@ try {
 
     <!-- Ficha de Saúde -->
     <div class="card">
-        <h3 class="card-titulo"><i class="fas fa-notes-medical" style="color:#d62bc5;background:none;-webkit-text-fill-color:#d62bc5"></i> Ficha de Saúde</h3>
-        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Mantenha a sua ficha médica atualizada.</p>
-        <?php if ($msg_ficha): ?>
-            <div class="msg-ok"><i class="fas fa-check-circle"></i> <?= e($msg_ficha) ?></div>
-        <?php endif; ?>
-        <form method="POST">
-            <input type="hidden" name="acao" value="atualizar_ficha">
-            <div style="display:flex;gap:10px;margin-bottom:12px">
-                <div style="flex:1">
-                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Data de Nascimento</label>
-                    <input type="date" name="data_nascimento" value="<?= e($aluna['data_nascimento'] ?? '') ?>" style="margin-bottom:0">
+        <div class="ficha-toggle" id="ficha-toggle" onclick="toggleFicha()" role="button" tabindex="0" aria-expanded="false" aria-controls="ficha-campos">
+            <h3 class="card-titulo" style="margin:0"><i class="fas fa-notes-medical" style="color:#d62bc5;background:none;-webkit-text-fill-color:#d62bc5"></i> Ficha de Saúde</h3>
+            <div class="toggle-icon"><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="ficha-campos fechado" id="ficha-campos">
+            <p style="font-size:12px;color:var(--cinza);margin:12px 0 15px">Mantenha a sua ficha médica atualizada.</p>
+            <?php if ($msg_ficha): ?>
+                <div class="msg-ok"><i class="fas fa-check-circle"></i> <?= e($msg_ficha) ?></div>
+            <?php endif; ?>
+            <form method="POST">
+                <input type="hidden" name="acao" value="atualizar_ficha">
+                <div style="display:flex;gap:10px;margin-bottom:12px">
+                    <div style="flex:1">
+                        <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Data de Nascimento</label>
+                        <input type="date" name="data_nascimento" value="<?= e($aluna['data_nascimento'] ?? '') ?>" style="margin-bottom:0">
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Tipo Sanguíneo</label>
+                        <select name="tipo_sanguineo" style="margin-bottom:0">
+                            <option value="">Selecione</option>
+                            <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $ts): ?>
+                                <option value="<?= $ts ?>" <?= ($aluna['tipo_sanguineo'] ?? '') === $ts ? 'selected' : '' ?>><?= $ts ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
-                <div style="flex:1">
-                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Tipo Sanguíneo</label>
-                    <select name="tipo_sanguineo" style="margin-bottom:0">
-                        <option value="">Selecione</option>
-                        <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $ts): ?>
-                            <option value="<?= $ts ?>" <?= ($aluna['tipo_sanguineo'] ?? '') === $ts ? 'selected' : '' ?>><?= $ts ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div style="display:flex;gap:10px;margin-bottom:12px">
+                    <div style="flex:1">
+                        <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Peso (kg)</label>
+                        <input type="number" step="0.1" name="peso" value="<?= e($aluna['peso'] ?? '') ?>" placeholder="Ex: 65.5" style="margin-bottom:0">
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Altura (cm)</label>
+                        <input type="number" step="0.1" name="altura" value="<?= e($aluna['altura'] ?? '') ?>" placeholder="Ex: 168" style="margin-bottom:0">
+                    </div>
                 </div>
-            </div>
-            <div style="display:flex;gap:10px;margin-bottom:12px">
-                <div style="flex:1">
-                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Peso (kg)</label>
-                    <input type="number" step="0.1" name="peso" value="<?= e($aluna['peso'] ?? '') ?>" placeholder="Ex: 65.5" style="margin-bottom:0">
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Nível de Experiência</label>
+                <select name="nivel_experiencia">
+                    <option value="iniciante"     <?= ($aluna['nivel_experiencia'] ?? 'iniciante') === 'iniciante'     ? 'selected' : '' ?>>Iniciante</option>
+                    <option value="intermediario" <?= ($aluna['nivel_experiencia'] ?? '') === 'intermediario' ? 'selected' : '' ?>>Intermediário</option>
+                    <option value="avancado"      <?= ($aluna['nivel_experiencia'] ?? '') === 'avancado'      ? 'selected' : '' ?>>Avançado</option>
+                </select>
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Objetivo do Treino</label>
+                <textarea name="objetivo_treino" class="ficha-textarea" rows="2" placeholder="Ex: Perda de peso, competição, autodefesa..."><?= e($aluna['objetivo_treino'] ?? '') ?></textarea>
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Restrições Médicas</label>
+                <textarea name="restricoes" class="ficha-textarea" rows="2" placeholder="Ex: Sinto dor lombar, asma leve..."><?= e($aluna['restricoes_medicas'] ?? '') ?></textarea>
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Doenças Crônicas</label>
+                <textarea name="doencas_cronicas" class="ficha-textarea" rows="2" placeholder="Ex: Hipertensão, diabetes..."><?= e($aluna['doencas_cronicas'] ?? '') ?></textarea>
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Medicamentos em Uso</label>
+                <textarea name="medicamentos_uso" class="ficha-textarea" rows="2" placeholder="Ex: Losartana, metformina..."><?= e($aluna['medicamentos_uso'] ?? '') ?></textarea>
+                <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Histórico de Lesões</label>
+                <textarea name="historico_lesoes" class="ficha-textarea" rows="2" placeholder="Ex: Fratura no tornozelo em 2022..."><?= e($aluna['historico_lesoes'] ?? '') ?></textarea>
+                <div style="font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--borda)"><i class="fas fa-phone-alt"></i> Contato de Emergência</div>
+                <div style="display:flex;gap:10px">
+                    <input type="text" name="emergencia_nome" value="<?= e($aluna['emergencia_nome'] ?? '') ?>" placeholder="Nome do Contato" style="flex:1;margin-bottom:12px">
+                    <input type="text" name="emergencia_telefone" value="<?= e($aluna['emergencia_telefone'] ?? '') ?>" placeholder="Telefone" style="flex:1;margin-bottom:12px">
                 </div>
-                <div style="flex:1">
-                    <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Altura (cm)</label>
-                    <input type="number" step="0.1" name="altura" value="<?= e($aluna['altura'] ?? '') ?>" placeholder="Ex: 168" style="margin-bottom:0">
-                </div>
-            </div>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Nível de Experiência</label>
-            <select name="nivel_experiencia">
-                <option value="iniciante"     <?= ($aluna['nivel_experiencia'] ?? 'iniciante') === 'iniciante'     ? 'selected' : '' ?>>Iniciante</option>
-                <option value="intermediario" <?= ($aluna['nivel_experiencia'] ?? '') === 'intermediario' ? 'selected' : '' ?>>Intermediário</option>
-                <option value="avancado"      <?= ($aluna['nivel_experiencia'] ?? '') === 'avancado'      ? 'selected' : '' ?>>Avançado</option>
-            </select>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Objetivo do Treino</label>
-            <textarea name="objetivo_treino" class="ficha-textarea" rows="2" placeholder="Ex: Perda de peso, competição, autodefesa..."><?= e($aluna['objetivo_treino'] ?? '') ?></textarea>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Restrições Médicas</label>
-            <textarea name="restricoes" class="ficha-textarea" rows="2" placeholder="Ex: Sinto dor lombar, asma leve..."><?= e($aluna['restricoes_medicas'] ?? '') ?></textarea>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Doenças Crônicas</label>
-            <textarea name="doencas_cronicas" class="ficha-textarea" rows="2" placeholder="Ex: Hipertensão, diabetes..."><?= e($aluna['doencas_cronicas'] ?? '') ?></textarea>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Medicamentos em Uso</label>
-            <textarea name="medicamentos_uso" class="ficha-textarea" rows="2" placeholder="Ex: Losartana, metformina..."><?= e($aluna['medicamentos_uso'] ?? '') ?></textarea>
-            <label style="font-size:11px;color:var(--cinza);display:block;margin-bottom:4px;text-transform:uppercase;font-weight:600">Histórico de Lesões</label>
-            <textarea name="historico_lesoes" class="ficha-textarea" rows="2" placeholder="Ex: Fratura no tornozelo em 2022..."><?= e($aluna['historico_lesoes'] ?? '') ?></textarea>
-            <div style="font-size:12px;color:#d62bc5;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:15px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--borda)"><i class="fas fa-phone-alt"></i> Contato de Emergência</div>
-            <div style="display:flex;gap:10px">
-                <input type="text" name="emergencia_nome" value="<?= e($aluna['emergencia_nome'] ?? '') ?>" placeholder="Nome do Contato" style="flex:1;margin-bottom:12px">
-                <input type="text" name="emergencia_telefone" value="<?= e($aluna['emergencia_telefone'] ?? '') ?>" placeholder="Telefone" style="flex:1;margin-bottom:12px">
-            </div>
-            <button type="submit" class="btn-salvar"><i class="fas fa-save"></i> Atualizar Ficha</button>
-        </form>
+                <button type="submit" class="btn-salvar"><i class="fas fa-save"></i> Atualizar Ficha</button>
+            </form>
+        </div><!-- /ficha-campos -->
     </div>
 
     <!-- Missão da Semana -->
@@ -418,6 +480,67 @@ try {
 </div>
 
 <script>
+// ---- Ficha de Saúde toggle ----
+function toggleFicha() {
+    var campos  = document.getElementById('ficha-campos');
+    var toggle  = document.getElementById('ficha-toggle');
+    var aberto  = !campos.classList.contains('fechado');
+    if (aberto) {
+        campos.style.maxHeight = campos.scrollHeight + 'px';
+        requestAnimationFrame(function(){
+            campos.style.maxHeight = '0';
+            campos.classList.add('fechado');
+            toggle.classList.remove('aberto');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    } else {
+        campos.classList.remove('fechado');
+        campos.style.maxHeight = campos.scrollHeight + 'px';
+        toggle.classList.add('aberto');
+        toggle.setAttribute('aria-expanded', 'true');
+        // Remove fixed max-height after animation so content can resize
+        campos.addEventListener('transitionend', function handler() {
+            campos.style.maxHeight = 'none';
+            campos.removeEventListener('transitionend', handler);
+        });
+    }
+}
+// Open ficha automatically if there's a success message
+<?php if ($msg_ficha): ?>
+document.addEventListener('DOMContentLoaded', function(){ toggleFicha(); });
+<?php endif; ?>
+
+// ---- PWA Install banner ----
+var pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    pwaPrompt = e;
+    var banner = document.getElementById('pwa-banner');
+    if (banner && !sessionStorage.getItem('pwa-dismissed')) {
+        banner.style.display = 'flex';
+    }
+});
+document.getElementById('pwa-install-btn').addEventListener('click', function() {
+    if (pwaPrompt) {
+        pwaPrompt.prompt();
+        pwaPrompt.userChoice.then(function(r) {
+            if (r.outcome === 'accepted') fecharBanner();
+            pwaPrompt = null;
+        });
+    }
+});
+function fecharBanner() {
+    var banner = document.getElementById('pwa-banner');
+    if (banner) banner.style.display = 'none';
+    sessionStorage.setItem('pwa-dismissed', '1');
+}
+
+// ---- Service Worker ----
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+
+// ---- Existing functions ----
 function concluirMissao(btn) {
     btn.innerHTML = '<i class="fas fa-trophy"></i> MISSÃO CUMPRIDA!';
     btn.style.background = 'var(--pink)';
@@ -444,8 +567,8 @@ function copiarLink(btn) {
 function compartilharLink() {
     if (navigator.share) {
         navigator.share({
-            title: 'Passe Livre - Elite Thai',
-            text: 'Vem treinar comigo na Elite Thai! Resgata o teu Passe Livre VIP:',
+            title: 'Passe Livre - Elite Thai Girls',
+            text: 'Vem treinar comigo na Elite Thai Girls! Resgata o teu Passe Livre VIP:',
             url: document.getElementById('linkConvite').value
         }).catch(function(){});
     } else {

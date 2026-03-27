@@ -153,7 +153,13 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Painel Treinador - Elite Thai</title>
+    <title>Elite Thai Girls | Treinador</title>
+    <meta name="theme-color" content="#d62bc5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Elite Thai Girls">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -201,7 +207,7 @@ $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'C
 <div class="app">
 
     <div class="header">
-        <h1><span>Elite</span> Treinador</h1>
+        <h1><img src="icon.svg" alt="" style="width:20px;height:20px;border-radius:4px;vertical-align:middle;margin-right:6px"><span>Elite Thai Girls</span> | Treinador</h1>
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 
@@ -519,6 +525,9 @@ function toggleDiv(id) {
     if (el.style.display === 'block') {
         el.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
+}
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
 }
 </script>
 </body>
