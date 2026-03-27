@@ -90,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .check input{margin-right:10px;width:18px;height:18px;cursor:pointer;accent-color:#7b2cbf}
         .btn{width:100%;padding:15px;border:none;border-radius:10px;background:#6d28d9;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;text-transform:uppercase;transition:all .3s;box-shadow:0 4px 20px rgba(109,40,217,.4)}
         .btn:hover{background:#7c3aed;box-shadow:0 6px 28px rgba(109,40,217,.6);transform:translateY(-1px)}
+        .link-cadastro{margin-top:18px;color:#888;font-size:14px}
+        .link-cadastro a{color:#c084fc;text-decoration:none;font-weight:700}
+        .link-cadastro a:hover{text-decoration:underline}
     </style>
 </head>
 <body>
@@ -110,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <button type="submit" class="btn">ENTRAR NO TREINO</button>
     </form>
+    <div class="link-cadastro">Ainda não tem conta? <a href="cadastro.php">Criar conta</a></div>
 </div>
 <script>
 // Space stars canvas
