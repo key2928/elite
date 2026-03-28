@@ -385,6 +385,15 @@ try {
     <?php if ($msg_sucesso): ?><div class="alerta"><i class="fas fa-check-circle"></i> <?= e($msg_sucesso) ?></div><?php endif; ?>
     <?php if ($msg_erro): ?><div class="alerta-erro"><i class="fas fa-exclamation-triangle"></i> <?= e($msg_erro) ?></div><?php endif; ?>
 
+    <!-- Google Drive — Turma Feminina -->
+    <div class="card" style="border-color:#4285F4;background:linear-gradient(180deg,var(--card),rgba(66,133,244,.07))">
+        <h3 class="card-titulo" style="color:#4285F4"><i class="fab fa-google-drive" style="background:none;-webkit-text-fill-color:#4285F4"></i> Pasta da Turma Feminina</h3>
+        <p style="font-size:13px;color:var(--cinza);margin-top:-10px;margin-bottom:16px">Acesse a pasta compartilhada para fazer upload de arquivos, fotos e documentos da turma.</p>
+        <a href="https://drive.google.com/drive/folders/1TquTj5UeShvSp0fKaw5TjEK6dYmB_iNu" target="_blank" rel="noopener noreferrer" class="btn-submit" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(90deg,#4285F4,#0F9D58);box-shadow:0 5px 15px rgba(66,133,244,.35);text-decoration:none;max-width:320px">
+            <i class="fab fa-google-drive"></i> Abrir Google Drive
+        </a>
+    </div>
+
     <!-- Chamada -->
     <div class="card" style="border-left:4px solid #2ecc71">
         <h3 class="card-titulo"><i class="fas fa-clipboard-list" style="background:none;-webkit-text-fill-color:#2ecc71"></i> Chamada da Turma</h3>
