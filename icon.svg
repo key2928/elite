@@ -4,68 +4,92 @@
       <stop offset="0%" style="stop-color:#0b0710"/>
       <stop offset="100%" style="stop-color:#1a0a2e"/>
     </linearGradient>
-    <!-- Pink glove gradient -->
-    <linearGradient id="glove-main" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff85c8"/>
-      <stop offset="60%" style="stop-color:#e8329a"/>
+    <linearGradient id="crown-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffb3e0"/>
+      <stop offset="50%" style="stop-color:#e8329a"/>
       <stop offset="100%" style="stop-color:#c01878"/>
     </linearGradient>
-    <linearGradient id="glove-light" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffb3e0"/>
-      <stop offset="100%" style="stop-color:#ff6bb8"/>
+    <linearGradient id="crown-shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd6f0"/>
+      <stop offset="100%" style="stop-color:#ff85c8"/>
     </linearGradient>
-    <linearGradient id="cuff" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#d62bc5"/>
+    <linearGradient id="gem-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e879f9"/>
       <stop offset="100%" style="stop-color:#7b2cbf"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="4" dy="8" stdDeviation="10" flood-color="#c01878" flood-opacity="0.5"/>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <filter id="soft-shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#d62bc5" flood-opacity="0.55"/>
+    </filter>
+    <symbol id="sparkle" viewBox="72 148 32 64">
+      <polygon points="88,180 92,192 104,192 94,200 98,212 88,204 78,212 82,200 72,192 84,192"/>
+    </symbol>
   </defs>
 
   <!-- Background -->
   <rect width="512" height="512" rx="80" fill="url(#bg)"/>
 
-  <!-- Soft pink glow behind glove -->
-  <ellipse cx="256" cy="230" rx="170" ry="150" fill="#e8329a" opacity="0.08"/>
+  <!-- Radial ambient glow -->
+  <radialGradient id="ambient" cx="50%" cy="42%" r="50%">
+    <stop offset="0%" style="stop-color:#9d174d;stop-opacity:0.22"/>
+    <stop offset="100%" style="stop-color:#0b0710;stop-opacity:0"/>
+  </radialGradient>
+  <rect width="512" height="512" rx="80" fill="url(#ambient)"/>
 
-  <!-- ===== SINGLE PINK BOXING GLOVE (facing right, upright fist) ===== -->
-  <!-- Glove body (main fist / knuckle area) -->
-  <g filter="url(#shadow)">
-    <!-- Thumb -->
-    <ellipse cx="178" cy="195" rx="30" ry="22" fill="url(#glove-main)" transform="rotate(-30 178 195)"/>
-    <ellipse cx="178" cy="195" rx="22" ry="15" fill="url(#glove-light)" opacity="0.5" transform="rotate(-30 178 195)"/>
+  <!-- ===== CROWN ===== -->
+  <g filter="url(#soft-shadow)">
+    <!-- Crown base band -->
+    <rect x="128" y="268" width="256" height="54" rx="14" fill="url(#crown-grad)"/>
+    <!-- Crown base highlight -->
+    <rect x="128" y="268" width="256" height="20" rx="14" fill="url(#crown-shine)" opacity="0.45"/>
 
-    <!-- Main fist block -->
-    <rect x="170" y="155" width="160" height="130" rx="44" fill="url(#glove-main)"/>
+    <!-- Crown left spike -->
+    <polygon points="142,268 168,148 194,268" fill="url(#crown-grad)"/>
+    <polygon points="148,268 168,162 188,268" fill="url(#crown-shine)" opacity="0.35"/>
 
-    <!-- Knuckle highlight strip -->
-    <rect x="182" y="163" width="136" height="44" rx="22" fill="url(#glove-light)" opacity="0.55"/>
+    <!-- Crown center spike (tallest) -->
+    <polygon points="220,268 256,118 292,268" fill="url(#crown-grad)"/>
+    <polygon points="228,268 256,134 284,268" fill="url(#crown-shine)" opacity="0.4"/>
 
-    <!-- Knuckle separation lines -->
-    <line x1="230" y1="163" x2="224" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-    <line x1="270" y1="163" x2="264" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-    <line x1="310" y1="163" x2="304" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+    <!-- Crown right spike -->
+    <polygon points="318,268 344,148 370,268" fill="url(#crown-grad)"/>
+    <polygon points="324,268 344,162 364,268" fill="url(#crown-shine)" opacity="0.35"/>
 
-    <!-- Glove wrist / cuff -->
-    <rect x="190" y="278" width="120" height="68" rx="18" fill="url(#cuff)"/>
+    <!-- Gem on center spike -->
+    <circle cx="256" cy="128" r="20" fill="url(#gem-grad)" filter="url(#glow)"/>
+    <circle cx="248" cy="121" r="6" fill="rgba(255,255,255,0.55)"/>
 
-    <!-- Cuff stripe decoration -->
-    <rect x="190" y="296" width="120" height="14" rx="0" fill="rgba(255,255,255,0.18)"/>
-    <rect x="190" y="318" width="120" height="8" rx="0" fill="rgba(255,255,255,0.10)"/>
+    <!-- Gem on left spike -->
+    <circle cx="168" cy="158" r="13" fill="url(#gem-grad)" filter="url(#glow)"/>
+    <circle cx="163" cy="153" r="4" fill="rgba(255,255,255,0.5)"/>
 
-    <!-- Cuff bottom curve -->
-    <ellipse cx="250" cy="346" rx="60" ry="12" fill="url(#cuff)"/>
+    <!-- Gem on right spike -->
+    <circle cx="344" cy="158" r="13" fill="url(#gem-grad)" filter="url(#glow)"/>
+    <circle cx="339" cy="153" r="4" fill="rgba(255,255,255,0.5)"/>
+
+    <!-- Small diamonds on base band -->
+    <polygon points="256,268 264,288 256,308 248,288" fill="rgba(255,255,255,0.30)"/>
+    <polygon points="196,268 202,284 196,300 190,284" fill="rgba(255,255,255,0.20)"/>
+    <polygon points="316,268 322,284 316,300 310,284" fill="rgba(255,255,255,0.20)"/>
+  </g>
+
+  <!-- Decorative sparkles -->
+  <g fill="#ff85c8" opacity="0.7" filter="url(#glow)">
+    <use href="#sparkle" x="-33" y="-93" width="19" height="38"/>
+    <use href="#sparkle" x="290" y="-113" width="14" height="29"/>
   </g>
 
   <!-- "ELITE THAI" label -->
-  <text x="256" y="406" font-family="Arial, sans-serif" font-size="30" font-weight="900" font-style="italic"
-        fill="#ff85c8" text-anchor="middle" letter-spacing="2" opacity="0.95">ELITE THAI</text>
+  <text x="256" y="398" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" font-style="italic"
+        fill="url(#crown-grad)" text-anchor="middle" letter-spacing="1" filter="url(#glow)">ELITE THAI</text>
 
-  <!-- Bottom accent line -->
-  <rect x="96" y="416" width="320" height="3" rx="2" fill="url(#glove-main)" opacity="0.7"/>
+  <!-- Accent line -->
+  <rect x="100" y="408" width="312" height="3" rx="2" fill="url(#crown-grad)" opacity="0.75"/>
 
   <!-- "GIRLS" sub-label -->
-  <text x="256" y="452" font-family="Arial, sans-serif" font-size="22" font-weight="700"
-        fill="rgba(255,255,255,0.75)" text-anchor="middle" letter-spacing="10">GIRLS</text>
+  <text x="256" y="452" font-family="Arial, sans-serif" font-size="26" font-weight="700"
+        fill="rgba(255,255,255,0.80)" text-anchor="middle" letter-spacing="12">GIRLS</text>
 </svg>
