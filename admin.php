@@ -35,29 +35,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Usuário removido.';
     }
 
-    // 2b. Editar Usuário (login, senha, permissão)
+    // 2b. Editar Usuário (nome, login, senha, telefone, nascimento, permissão)
     if ($acao === 'editar_usuario') {
         $id_edit    = (int)($_POST['id'] ?? 0);
+        $nome       = trim($_POST['nome'] ?? '');
         $email      = trim($_POST['email'] ?? '');
+        $telefone   = trim($_POST['telefone'] ?? '');
         $tipo       = $_POST['tipo'] ?? 'aluno';
+        $data_nasc  = $_POST['data_nascimento'] ?: null;
         $nova_senha = $_POST['nova_senha'] ?? '';
         $tipos_validos = ['admin', 'professor', 'treinador', 'instrutor', 'aluno'];
-        if ($id_edit && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && in_array($tipo, $tipos_validos, true)) {
+        if ($id_edit && $nome !== '' && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && in_array($tipo, $tipos_validos, true)) {
             try {
                 if ($nova_senha !== '') {
                     $senha_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
-                    $pdo->prepare("UPDATE usuarios SET email=?, tipo=?, senha=? WHERE id=?")
-                        ->execute([$email, $tipo, $senha_hash, $id_edit]);
+                    $pdo->prepare("UPDATE usuarios SET nome=?, email=?, telefone=?, tipo=?, data_nascimento=?, senha=? WHERE id=?")
+                        ->execute([$nome, $email, $telefone ?: null, $tipo, $data_nasc, $senha_hash, $id_edit]);
                 } else {
-                    $pdo->prepare("UPDATE usuarios SET email=?, tipo=? WHERE id=?")
-                        ->execute([$email, $tipo, $id_edit]);
+                    $pdo->prepare("UPDATE usuarios SET nome=?, email=?, telefone=?, tipo=?, data_nascimento=? WHERE id=?")
+                        ->execute([$nome, $email, $telefone ?: null, $tipo, $data_nasc, $id_edit]);
                 }
                 $msg_sucesso = 'Usuário atualizado com sucesso!';
             } catch (PDOException $e) {
                 $msg_erro = 'Erro: Este e-mail/login já está em uso por outro usuário.';
             }
         } else {
-            $msg_erro = 'Dados inválidos. Verifique o e-mail e o nível de permissão.';
+            $msg_erro = 'Dados inválidos. Verifique o nome, e-mail e o nível de permissão.';
         }
     }
 
@@ -98,6 +101,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Horário removido.';
     }
 
+    // 7b. Editar Horário
+    if ($acao === 'editar_horario') {
+        $pdo->prepare("UPDATE horarios_treino SET dia_semana=?, horario=?, descricao=? WHERE id=?")
+            ->execute([$_POST['dia'] ?? '', $_POST['hora'] ?? '', $_POST['desc'] ?? '', (int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Horário atualizado!';
+    }
+
     // 8. Adicionar Turma
     if ($acao === 'add_turma') {
         $hor_id  = !empty($_POST['horario_id']) ? (int)$_POST['horario_id'] : null;
@@ -119,11 +129,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Turma removida.';
     }
 
+    // 9b. Editar Turma
+    if ($acao === 'editar_turma') {
+        $id_turma = (int)($_POST['id'] ?? 0);
+        $hor_id   = !empty($_POST['horario_id']) ? (int)$_POST['horario_id'] : null;
+        if ($id_turma) {
+            $pdo->prepare("UPDATE turmas SET nome=?, horario_id=? WHERE id=?")
+                ->execute([$_POST['nome'] ?? '', $hor_id, $id_turma]);
+            $pdo->prepare("DELETE FROM turma_professores WHERE turma_id=?")->execute([$id_turma]);
+            if (!empty($_POST['professor_ids']) && is_array($_POST['professor_ids'])) {
+                $stmtTP = $pdo->prepare("INSERT IGNORE INTO turma_professores (turma_id, professor_id) VALUES (?,?)");
+                foreach ($_POST['professor_ids'] as $pid) {
+                    $stmtTP->execute([$id_turma, (int)$pid]);
+                }
+            }
+            $msg_sucesso = 'Turma atualizada!';
+        }
+    }
+
     // 10. Adicionar Aviso
     if ($acao === 'add_aviso') {
         $pdo->prepare("INSERT INTO mural_avisos (autor_id, titulo, mensagem, tipo) VALUES (?,?,?,?)")
             ->execute([$_SESSION['usuario_id'], $_POST['titulo'] ?? '', $_POST['mensagem'] ?? '', $_POST['tipo'] ?? 'info']);
         $msg_sucesso = 'Aviso publicado!';
+    }
+
+    // 10b. Editar Aviso
+    if ($acao === 'editar_aviso') {
+        $pdo->prepare("UPDATE mural_avisos SET titulo=?, mensagem=?, tipo=? WHERE id=?")
+            ->execute([$_POST['titulo'] ?? '', $_POST['mensagem'] ?? '', $_POST['tipo'] ?? 'info', (int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Aviso atualizado!';
+    }
+
+    // 10c. Excluir Aviso
+    if ($acao === 'excluir_aviso') {
+        $pdo->prepare("DELETE FROM mural_avisos WHERE id=?")->execute([(int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Aviso removido!';
     }
 
     // 11. Atualizar Lead
@@ -161,6 +202,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($acao === 'desativar_brinde_admin') {
         $pdo->prepare("UPDATE brindes SET ativo=0 WHERE id=?")->execute([(int)($_POST['id'] ?? 0)]);
         $msg_sucesso = 'Brinde removido.';
+    }
+
+    // 14b. Editar Brinde (Admin)
+    if ($acao === 'editar_brinde_admin') {
+        $nome = trim($_POST['nome_brinde'] ?? '');
+        if ($nome !== '') {
+            $pdo->prepare("UPDATE brindes SET nome=?, descricao=? WHERE id=?")
+                ->execute([$nome, trim($_POST['desc_brinde'] ?? ''), (int)($_POST['id'] ?? 0)]);
+            $msg_sucesso = 'Brinde atualizado!';
+        }
     }
 
     // 15. Entregar Brinde (Admin)
@@ -225,6 +276,15 @@ try {
     $turmas = $pdo->query("SELECT t.*, GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR ', ') as professores_nomes, h.dia_semana, h.horario FROM turmas t LEFT JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN usuarios u ON tp.professor_id = u.id LEFT JOIN horarios_treino h ON t.horario_id = h.id WHERE t.ativo = 1 GROUP BY t.id ORDER BY t.nome")->fetchAll();
 } catch (Exception $e) {}
 
+// Pre-fetch all turma-professor relationships to avoid N+1 queries in the edit form
+$turma_professores_map = [];
+try {
+    $tp_rows = $pdo->query("SELECT turma_id, professor_id FROM turma_professores")->fetchAll();
+    foreach ($tp_rows as $row) {
+        $turma_professores_map[(int)$row['turma_id']][] = (int)$row['professor_id'];
+    }
+} catch (Exception $e) {}
+
 // Alunos com status de pagamento
 $alunos_status = [];
 try {
@@ -245,6 +305,9 @@ try {
 
 $brindes_admin = [];
 try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY nome")->fetchAll(); } catch (Exception $e) {}
+
+$avisos = [];
+try { $avisos = $pdo->query("SELECT * FROM mural_avisos ORDER BY data_publicacao DESC")->fetchAll(); } catch (Exception $e) {}
 
 $pastas_turma = [];
 try {
@@ -494,8 +557,14 @@ try {
                             <form method="POST">
                                 <input type="hidden" name="acao" value="editar_usuario">
                                 <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-user"></i> Nome Completo</label>
+                                <input type="text" name="nome" value="<?= e($u['nome']) ?>" placeholder="Nome Completo" required>
                                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-envelope"></i> Login / E-mail</label>
                                 <input type="email" name="email" value="<?= e($u['email']) ?>" placeholder="Login ou E-mail" required>
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fab fa-whatsapp"></i> WhatsApp</label>
+                                <input type="text" name="telefone" value="<?= e($u['telefone'] ?? '') ?>" placeholder="WhatsApp (opcional)">
+                                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-calendar-alt"></i> Data de Nascimento</label>
+                                <input type="date" name="data_nascimento" value="<?= e($u['data_nascimento'] ?? '') ?>">
                                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-shield-alt"></i> Nível de Permissão</label>
                                 <select name="tipo" required>
                                     <option value="aluno"      <?= $u['tipo'] === 'aluno'      ? 'selected' : '' ?>>Aluno(a)</option>
@@ -568,16 +637,34 @@ try {
                 <button type="submit" class="btn-submit">Adicionar</button>
             </form>
             <?php foreach ($horarios as $h): ?>
-                <div class="item-lista item-topo">
-                    <div>
-                        <span class="item-nome"><?= e($h['dia_semana']) ?></span><br>
-                        <span style="font-size:12px;color:var(--cinza)"><?= e($h['horario']) ?> — <?= e($h['descricao'] ?? '') ?></span>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome"><?= e($h['dia_semana']) ?></span><br>
+                            <span style="font-size:12px;color:var(--cinza)"><?= e($h['horario']) ?> — <?= e($h['descricao'] ?? '') ?></span>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditHorario(<?= (int)$h['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="excluir_horario">
+                                <input type="hidden" name="id" value="<?= (int)$h['id'] ?>">
+                                <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
                     </div>
-                    <form method="POST">
-                        <input type="hidden" name="acao" value="excluir_horario">
-                        <input type="hidden" name="id" value="<?= (int)$h['id'] ?>">
-                        <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
-                    </form>
+                    <div id="editHorario<?= (int)$h['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_horario">
+                            <input type="hidden" name="id" value="<?= (int)$h['id'] ?>">
+                            <input type="text" name="dia" value="<?= e($h['dia_semana']) ?>" placeholder="Dia (Ex: Segunda-feira)" required>
+                            <input type="text" name="hora" value="<?= e($h['horario']) ?>" placeholder="Horário (Ex: 20:30 às 21:30)" required>
+                            <input type="text" name="desc" value="<?= e($h['descricao'] ?? '') ?>" placeholder="Descrição (Ex: Treino Feminino)">
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                <button type="button" onclick="toggleEditHorario(<?= (int)$h['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -609,19 +696,53 @@ try {
                 <p style="font-size:13px;color:var(--cinza);text-align:center">Nenhuma turma criada ainda.</p>
             <?php endif; ?>
             <?php foreach ($turmas as $t): ?>
-                <div class="item-lista item-topo">
-                    <div>
-                        <span class="item-nome"><?= e($t['nome']) ?></span><br>
-                        <span style="font-size:12px;color:var(--cinza)">
-                            <i class="fas fa-user-tie" style="color:#d62bc5"></i> <?= e($t['professores_nomes'] ?? 'Sem professor') ?> |
-                            <i class="fas fa-clock" style="color:#7b2cbf"></i> <?= e(trim(($t['dia_semana'] ?? '') . ' ' . ($t['horario'] ?? ''))) ?: '—' ?>
-                        </span>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome"><?= e($t['nome']) ?></span><br>
+                            <span style="font-size:12px;color:var(--cinza)">
+                                <i class="fas fa-user-tie" style="color:#d62bc5"></i> <?= e($t['professores_nomes'] ?? 'Sem professor') ?> |
+                                <i class="fas fa-clock" style="color:#7b2cbf"></i> <?= e(trim(($t['dia_semana'] ?? '') . ' ' . ($t['horario'] ?? ''))) ?: '—' ?>
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditTurma(<?= (int)$t['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="excluir_turma">
+                                <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+                                <button type="submit" class="btn-excluir" onclick="return confirm('Excluir esta turma?')"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
                     </div>
-                    <form method="POST">
-                        <input type="hidden" name="acao" value="excluir_turma">
-                        <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-                        <button type="submit" class="btn-excluir" onclick="return confirm('Excluir esta turma?')"><i class="fas fa-trash"></i></button>
-                    </form>
+                    <?php
+                    // Professores atuais desta turma (from pre-fetched map)
+                    $profs_turma_ids = $turma_professores_map[(int)$t['id']] ?? [];
+                    ?>
+                    <div id="editTurma<?= (int)$t['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_turma">
+                            <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+                            <input type="text" name="nome" value="<?= e($t['nome']) ?>" placeholder="Nome da Turma" required>
+                            <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:8px"><i class="fas fa-user-tie"></i> Professores</label>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                                <?php foreach ($professores as $pr): ?>
+                                    <label style="display:flex;align-items:center;gap:6px;background:#050308;border:1px solid var(--borda);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--cinza)">
+                                        <input type="checkbox" name="professor_ids[]" value="<?= (int)$pr['id'] ?>" style="width:auto;margin:0" <?= in_array((int)$pr['id'], $profs_turma_ids) ? 'checked' : '' ?>> <?= e($pr['nome']) ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <select name="horario_id">
+                                <option value="">Sem horário vinculado</option>
+                                <?php foreach ($horarios as $h): ?>
+                                    <option value="<?= (int)$h['id'] ?>" <?= (int)($t['horario_id'] ?? 0) === (int)$h['id'] ? 'selected' : '' ?>><?= e($h['dia_semana'] . ' — ' . $h['horario']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                <button type="button" onclick="toggleEditTurma(<?= (int)$t['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -689,6 +810,50 @@ try {
                 <button type="submit" class="btn-submit">Publicar</button>
             </form>
         </div>
+        <?php if (!empty($avisos)): ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-list"></i> Avisos Publicados</h3>
+            <?php foreach ($avisos as $av): ?>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome"><?= e($av['titulo']) ?></span>
+                            <?php if ($av['tipo'] === 'urgente'): ?>
+                                <span class="badge" style="background:rgba(255,68,68,.15);color:#ff4444;border:1px solid #ff4444;margin-left:6px">⚠️ Urgente</span>
+                            <?php else: ?>
+                                <span class="badge" style="background:rgba(52,152,219,.15);color:#3498db;border:1px solid #3498db;margin-left:6px">ℹ️ Info</span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditAviso(<?= (int)$av['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST" onsubmit="return confirm('Excluir este aviso?')">
+                                <input type="hidden" name="acao" value="excluir_aviso">
+                                <input type="hidden" name="id" value="<?= (int)$av['id'] ?>">
+                                <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--cinza);margin-bottom:8px"><?= nl2br(e($av['mensagem'])) ?></div>
+                    <div id="editAviso<?= (int)$av['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_aviso">
+                            <input type="hidden" name="id" value="<?= (int)$av['id'] ?>">
+                            <input type="text" name="titulo" value="<?= e($av['titulo']) ?>" placeholder="Título do Aviso" required>
+                            <textarea name="mensagem" rows="3" placeholder="Mensagem..."><?= e($av['mensagem']) ?></textarea>
+                            <select name="tipo">
+                                <option value="info" <?= $av['tipo'] === 'info' ? 'selected' : '' ?>>Informativo</option>
+                                <option value="urgente" <?= $av['tipo'] === 'urgente' ? 'selected' : '' ?>>⚠️ Urgente</option>
+                            </select>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                <button type="button" onclick="toggleEditAviso(<?= (int)$av['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- BRINDES -->
@@ -702,18 +867,35 @@ try {
                 <button type="submit" class="btn-submit"><i class="fas fa-plus"></i> Adicionar Brinde</button>
             </form>
             <?php foreach (($brindes_admin ?? []) as $br): ?>
-                <div class="item-lista item-topo">
-                    <div>
-                        <span class="item-nome">🎁 <?= e($br['nome']) ?></span>
-                        <?php if (!empty($br['descricao'])): ?>
-                            <br><span style="font-size:12px;color:var(--cinza)"><?= e($br['descricao']) ?></span>
-                        <?php endif; ?>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome">🎁 <?= e($br['nome']) ?></span>
+                            <?php if (!empty($br['descricao'])): ?>
+                                <br><span style="font-size:12px;color:var(--cinza)"><?= e($br['descricao']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditBrinde(<?= (int)$br['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="desativar_brinde_admin">
+                                <input type="hidden" name="id" value="<?= (int)$br['id'] ?>">
+                                <button type="submit" class="btn-excluir"><i class="fas fa-times"></i></button>
+                            </form>
+                        </div>
                     </div>
-                    <form method="POST">
-                        <input type="hidden" name="acao" value="desativar_brinde_admin">
-                        <input type="hidden" name="id" value="<?= (int)$br['id'] ?>">
-                        <button type="submit" class="btn-excluir"><i class="fas fa-times"></i></button>
-                    </form>
+                    <div id="editBrinde<?= (int)$br['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_brinde_admin">
+                            <input type="hidden" name="id" value="<?= (int)$br['id'] ?>">
+                            <input type="text" name="nome_brinde" value="<?= e($br['nome']) ?>" placeholder="Nome do brinde" required>
+                            <textarea name="desc_brinde" rows="2" placeholder="Descrição (opcional)"><?= e($br['descricao'] ?? '') ?></textarea>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                <button type="button" onclick="toggleEditBrinde(<?= (int)$br['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -843,18 +1025,17 @@ function openTab(tabName, btn) {
     document.getElementById(tabName).classList.add('ativo');
     btn.classList.add('ativo');
 }
-function toggleEditUsuario(id) {
-    var el = document.getElementById('editUsuario' + id);
+function toggleEdit(prefix, id) {
+    var el = document.getElementById(prefix + id);
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
-function toggleEditPlano(id) {
-    var el = document.getElementById('editPlano' + id);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-}
-function toggleEditPasta(id) {
-    var el = document.getElementById('editPasta' + id);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-}
+function toggleEditHorario(id) { toggleEdit('editHorario', id); }
+function toggleEditTurma(id) { toggleEdit('editTurma', id); }
+function toggleEditAviso(id) { toggleEdit('editAviso', id); }
+function toggleEditBrinde(id) { toggleEdit('editBrinde', id); }
+function toggleEditUsuario(id) { toggleEdit('editUsuario', id); }
+function toggleEditPlano(id) { toggleEdit('editPlano', id); }
+function toggleEditPasta(id) { toggleEdit('editPasta', id); }
 function toggleTurmaField() {
     var tipo = document.getElementById('tipoSelect').value;
     document.getElementById('turmaField').style.display = tipo === 'aluno' ? 'block' : 'none';
