@@ -344,5 +344,37 @@ CREATE TABLE IF NOT EXISTS `pastas_turma` (
     CONSTRAINT `fk_pt_turma` FOREIGN KEY (`turma_id`) REFERENCES `turmas` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================
+-- TABELA: materiais_marketing
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `materiais_marketing` (
+    `id`           INT(11) NOT NULL AUTO_INCREMENT,
+    `titulo`       VARCHAR(200) NOT NULL,
+    `descricao`    TEXT DEFAULT NULL,
+    `categoria`    VARCHAR(100) NOT NULL DEFAULT 'Geral',
+    `tipo_arquivo` ENUM('imagem','video','documento','link','outro') NOT NULL DEFAULT 'outro',
+    `arquivo_path` VARCHAR(500) DEFAULT NULL,
+    `drive_link`   VARCHAR(500) DEFAULT NULL,
+    `drive_file_id` VARCHAR(200) DEFAULT NULL,
+    `tamanho_kb`   INT(11) DEFAULT NULL,
+    `criado_por`   INT(11) NOT NULL,
+    `ativo`        TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `fk_mm_criado` (`criado_por`),
+    CONSTRAINT `fk_mm_criado` FOREIGN KEY (`criado_por`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABELA: usuario_permissoes
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `usuario_permissoes` (
+    `usuario_id` INT(11) NOT NULL,
+    `permissao`  VARCHAR(50) NOT NULL,
+    PRIMARY KEY (`usuario_id`, `permissao`),
+    KEY `fk_up_usuario` (`usuario_id`),
+    CONSTRAINT `fk_up_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Migração: brindes e brindes_aluna (execute em bancos existentes)
 -- (tables created above with IF NOT EXISTS — safe to re-run)
