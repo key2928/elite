@@ -1,71 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 280" width="512" height="280">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#0b0710"/>
       <stop offset="100%" style="stop-color:#1a0a2e"/>
     </linearGradient>
-    <!-- Pink glove gradient -->
-    <linearGradient id="glove-main" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="text-main" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#ff85c8"/>
       <stop offset="60%" style="stop-color:#e8329a"/>
       <stop offset="100%" style="stop-color:#c01878"/>
     </linearGradient>
-    <linearGradient id="glove-light" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffb3e0"/>
-      <stop offset="100%" style="stop-color:#ff6bb8"/>
-    </linearGradient>
-    <linearGradient id="cuff" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="text-sub" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#d62bc5"/>
       <stop offset="100%" style="stop-color:#7b2cbf"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="4" dy="8" stdDeviation="10" flood-color="#c01878" flood-opacity="0.5"/>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
 
   <!-- Background -->
-  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
+  <rect width="512" height="280" rx="50" fill="url(#bg)"/>
 
-  <!-- Soft pink glow behind glove -->
-  <ellipse cx="256" cy="230" rx="170" ry="150" fill="#e8329a" opacity="0.08"/>
+  <!-- Soft glow -->
+  <ellipse cx="256" cy="140" rx="220" ry="120" fill="#e8329a" opacity="0.06"/>
 
-  <!-- ===== SINGLE PINK BOXING GLOVE (facing right, upright fist) ===== -->
-  <!-- Glove body (main fist / knuckle area) -->
-  <g filter="url(#shadow)">
-    <!-- Thumb -->
-    <ellipse cx="178" cy="195" rx="30" ry="22" fill="url(#glove-main)" transform="rotate(-30 178 195)"/>
-    <ellipse cx="178" cy="195" rx="22" ry="15" fill="url(#glove-light)" opacity="0.5" transform="rotate(-30 178 195)"/>
+  <!-- "ELITE" -->
+  <text x="256" y="100" font-family="Arial Black, Arial, sans-serif" font-size="88" font-weight="900" font-style="italic"
+        fill="url(#text-main)" text-anchor="middle" letter-spacing="3" filter="url(#glow)">ELITE</text>
 
-    <!-- Main fist block -->
-    <rect x="170" y="155" width="160" height="130" rx="44" fill="url(#glove-main)"/>
+  <!-- Separator line -->
+  <rect x="56" y="114" width="400" height="3" rx="2" fill="url(#text-main)" opacity="0.6"/>
 
-    <!-- Knuckle highlight strip -->
-    <rect x="182" y="163" width="136" height="44" rx="22" fill="url(#glove-light)" opacity="0.55"/>
-
-    <!-- Knuckle separation lines -->
-    <line x1="230" y1="163" x2="224" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-    <line x1="270" y1="163" x2="264" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-    <line x1="310" y1="163" x2="304" y2="207" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-
-    <!-- Glove wrist / cuff -->
-    <rect x="190" y="278" width="120" height="68" rx="18" fill="url(#cuff)"/>
-
-    <!-- Cuff stripe decoration -->
-    <rect x="190" y="296" width="120" height="14" rx="0" fill="rgba(255,255,255,0.18)"/>
-    <rect x="190" y="318" width="120" height="8" rx="0" fill="rgba(255,255,255,0.10)"/>
-
-    <!-- Cuff bottom curve -->
-    <ellipse cx="250" cy="346" rx="60" ry="12" fill="url(#cuff)"/>
-  </g>
-
-  <!-- "ELITE THAI" label -->
-  <text x="256" y="406" font-family="Arial, sans-serif" font-size="30" font-weight="900" font-style="italic"
-        fill="#ff85c8" text-anchor="middle" letter-spacing="2" opacity="0.95">ELITE THAI</text>
+  <!-- "THAI" -->
+  <text x="256" y="186" font-family="Arial, sans-serif" font-size="68" font-weight="800"
+        fill="rgba(255,255,255,0.92)" text-anchor="middle" letter-spacing="14">THAI</text>
 
   <!-- Bottom accent line -->
-  <rect x="96" y="416" width="320" height="3" rx="2" fill="url(#glove-main)" opacity="0.7"/>
+  <rect x="56" y="200" width="400" height="3" rx="2" fill="url(#text-sub)" opacity="0.6"/>
 
-  <!-- "GIRLS" sub-label -->
-  <text x="256" y="452" font-family="Arial, sans-serif" font-size="22" font-weight="700"
-        fill="rgba(255,255,255,0.75)" text-anchor="middle" letter-spacing="10">GIRLS</text>
+  <!-- "GIRLS" -->
+  <text x="256" y="255" font-family="Arial, sans-serif" font-size="40" font-weight="700"
+        fill="url(#text-sub)" text-anchor="middle" letter-spacing="18">GIRLS</text>
 </svg>

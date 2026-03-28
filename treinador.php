@@ -405,7 +405,7 @@ try {
 <div class="app">
 
     <div class="header">
-        <h1><img src="icon.svg" alt="" style="width:20px;height:20px;border-radius:4px;vertical-align:middle;margin-right:6px"><span>Elite Thai Girls</span> | Treinador</h1>
+        <h1><span>Elite Thai Girls</span> | Treinador</h1>
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 
