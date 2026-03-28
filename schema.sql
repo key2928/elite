@@ -233,24 +233,51 @@ CREATE TABLE IF NOT EXISTS `presencas` (
 -- ============================================================
 -- MIGRAÇÕES — colunas adicionadas em atualização
 -- Execute em bancos já existentes para aplicar as mudanças
+-- Compatível com MySQL 5.x (usa INFORMATION_SCHEMA no lugar de
+-- ADD COLUMN IF NOT EXISTS, suportado apenas no MySQL 8.0+)
 -- ============================================================
 
-ALTER TABLE `usuarios`
-    ADD COLUMN IF NOT EXISTS `restricoes_medicas`  TEXT             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `data_nascimento`     DATE             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `tipo_sanguineo`      VARCHAR(5)       DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `peso`                DECIMAL(5,2)     DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `altura`              DECIMAL(5,2)     DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `doencas_cronicas`    TEXT             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `medicamentos_uso`    TEXT             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `historico_lesoes`    TEXT             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `emergencia_nome`     VARCHAR(150)     DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `emergencia_telefone` VARCHAR(20)      DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `objetivo_treino`     TEXT             DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `nivel_experiencia`   ENUM('iniciante','intermediario','avancado') NOT NULL DEFAULT 'iniciante';
+DROP PROCEDURE IF EXISTS `_migrate_add_column`;
 
-ALTER TABLE `pagamentos`
-    ADD COLUMN IF NOT EXISTS `forma_pagamento` ENUM('pix','credito','debito','dinheiro') NOT NULL DEFAULT 'pix';
+DELIMITER $$
+CREATE PROCEDURE `_migrate_add_column`(
+    IN p_table  VARCHAR(64),
+    IN p_column VARCHAR(64),
+    IN p_def    TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = p_table
+          AND COLUMN_NAME  = p_column
+    ) THEN
+        SET @_sql = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_column, '` ', p_def);
+        PREPARE _stmt FROM @_sql;
+        EXECUTE _stmt;
+        DEALLOCATE PREPARE _stmt;
+    END IF;
+END$$
+DELIMITER ;
+
+-- usuarios
+CALL `_migrate_add_column`('usuarios', 'restricoes_medicas',  'TEXT DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'data_nascimento',     'DATE DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'tipo_sanguineo',      'VARCHAR(5) DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'peso',                'DECIMAL(5,2) DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'altura',              'DECIMAL(5,2) DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'doencas_cronicas',    'TEXT DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'medicamentos_uso',    'TEXT DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'historico_lesoes',    'TEXT DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'emergencia_nome',     'VARCHAR(150) DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'emergencia_telefone', 'VARCHAR(20) DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'objetivo_treino',     'TEXT DEFAULT NULL');
+CALL `_migrate_add_column`('usuarios', 'nivel_experiencia',   'ENUM(''iniciante'',''intermediario'',''avancado'') NOT NULL DEFAULT ''iniciante''');
+
+-- pagamentos
+CALL `_migrate_add_column`('pagamentos', 'forma_pagamento', 'ENUM(''pix'',''credito'',''debito'',''dinheiro'') NOT NULL DEFAULT ''pix''');
+
+DROP PROCEDURE IF EXISTS `_migrate_add_column`;
 
 -- Migração: popular turma_professores a partir do professor_id legado em turmas
 INSERT IGNORE INTO `turma_professores` (`turma_id`, `professor_id`)
