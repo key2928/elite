@@ -241,8 +241,8 @@ DROP PROCEDURE IF EXISTS `_migrate_add_column`;
 
 DELIMITER $$
 CREATE PROCEDURE `_migrate_add_column`(
-    IN p_table  VARCHAR(64),
-    IN p_column VARCHAR(64),
+    IN p_table  VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci,
+    IN p_column VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci,
     IN p_def    TEXT
 )
 BEGIN
