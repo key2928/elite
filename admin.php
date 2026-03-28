@@ -694,13 +694,19 @@ try {
         <div class="card">
             <h3 class="card-titulo"><i class="fas fa-ticket-alt"></i> Convidados (Leads)</h3>
             <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Pessoas que resgataram o Passe Livre VIP.</p>
-            <div style="max-height:500px;overflow-y:auto">
+            <input type="text" id="buscaLeads" placeholder="🔍 Buscar por nome ou telefone..." oninput="filtrarLeads()" style="margin-bottom:12px">
+            <div style="max-height:500px;overflow-y:auto" id="listaLeads">
                 <?php foreach ($leads as $lead):
-                    $wa_msg = urlencode("Olá " . $lead['nome_convidada'] . "! 👋 Somos da Elite Thai Girls. Você recebeu um Passe Livre VIP indicado por " . $lead['quem_indicou'] . ". Gostaríamos de agendar sua aula experimental gratuita! Que dia fica melhor? 🥊");
                     $wa_num = preg_replace('/\D/', '', $lead['telefone_convidada']);
+                    $wa_templates = [
+                        'convite'   => urlencode("Olá " . $lead['nome_convidada'] . "! 👋 Somos da Elite Thai Girls. Você recebeu um Passe Livre VIP indicado por " . $lead['quem_indicou'] . ". Gostaríamos de agendar sua aula experimental gratuita! Que dia fica melhor? 🥊"),
+                        'followup'  => urlencode("Oi " . $lead['nome_convidada'] . "! 😊 Passando para saber se você conseguiu ver nossa mensagem sobre a aula experimental gratuita. Estamos te esperando na Elite Thai Girls! 🥊"),
+                        'matricula' => urlencode("Olá " . $lead['nome_convidada'] . "! 🎉 Que ótimo que você gostou da aula! Vamos garantir sua matrícula na Elite Thai Girls? Me chama aqui que eu te passo todos os detalhes! 💪"),
+                    ];
                     $data_fmt = date('d/m/Y H:i', strtotime($lead['data_indicacao']));
+                    $lead_id = (int)$lead['id'];
                 ?>
-                    <div class="item-lista">
+                    <div class="item-lista item-lead" data-nome="<?= strtolower(e($lead['nome_convidada'])) ?>" data-tel="<?= e(preg_replace('/\D/', '', $lead['telefone_convidada'])) ?>">
                         <div class="item-topo">
                             <span class="item-nome"><?= e($lead['nome_convidada']) ?></span>
                             <span class="badge status-<?= e($lead['status']) ?>"><i class="fas fa-circle" style="font-size:7px"></i> <?= ucfirst(e($lead['status'])) ?></span>
@@ -710,10 +716,10 @@ try {
                             &nbsp;·&nbsp;<i class="fas fa-gift" style="color:#d62bc5"></i> Indicado por <strong style="color:#fff"><?= e($lead['quem_indicou']) ?></strong>
                             <br><i class="fas fa-clock" style="opacity:.5"></i> <span style="opacity:.5"><?= $data_fmt ?></span>
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                             <form method="POST" style="display:contents">
                                 <input type="hidden" name="acao" value="atualizar_lead">
-                                <input type="hidden" name="id" value="<?= (int)$lead['id'] ?>">
+                                <input type="hidden" name="id" value="<?= $lead_id ?>">
                                 <select name="status" style="margin:0;padding:8px 10px;font-size:12px;flex:1;min-width:120px">
                                     <option value="novo" <?= $lead['status'] === 'novo' ? 'selected' : '' ?>>🟡 Novo</option>
                                     <option value="contatado" <?= $lead['status'] === 'contatado' ? 'selected' : '' ?>>🔵 Contatado</option>
@@ -721,10 +727,15 @@ try {
                                 </select>
                                 <button type="submit" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto" title="Salvar"><i class="fas fa-save"></i></button>
                             </form>
-                            <a href="https://wa.me/55<?= $wa_num ?>?text=<?= $wa_msg ?>" target="_blank" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto;background:#25D366;text-decoration:none;text-align:center;box-shadow:none" title="Abrir WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                            <select id="tpl<?= $lead_id ?>" onchange="atualizarWa(<?= $lead_id ?>,'<?= $wa_num ?>',<?= htmlspecialchars(json_encode($wa_templates, JSON_HEX_QUOT | JSON_HEX_APOS), ENT_QUOTES) ?>)" style="margin:0;padding:8px 10px;font-size:12px;min-width:130px">
+                                <option value="convite">📩 Convite VIP</option>
+                                <option value="followup">🔔 Follow-up</option>
+                                <option value="matricula">🎉 Matrícula</option>
+                            </select>
+                            <a id="waLink<?= $lead_id ?>" href="https://wa.me/55<?= $wa_num ?>?text=<?= $wa_templates['convite'] ?>" target="_blank" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto;background:#25D366;text-decoration:none;text-align:center;box-shadow:none" title="Abrir WhatsApp"><i class="fab fa-whatsapp"></i></a>
                             <form method="POST" onsubmit="return confirm('Remover este lead?')" style="display:contents">
                                 <input type="hidden" name="acao" value="excluir_lead">
-                                <input type="hidden" name="id" value="<?= (int)$lead['id'] ?>">
+                                <input type="hidden" name="id" value="<?= $lead_id ?>">
                                 <button type="submit" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto;background:rgba(255,68,68,.2);box-shadow:none;border:1px solid #ff4444;color:#ff4444" title="Remover"><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
@@ -1476,6 +1487,22 @@ function filterMateriais(cat, btn) {
     btn.classList.add('ativo');
     document.querySelectorAll('.mat-card').forEach(function(c){
         c.style.display = (cat === 'todos' || c.dataset.cat === cat) ? '' : 'none';
+    });
+}
+function atualizarWa(id, num, templates) {
+    var sel = document.getElementById('tpl' + id);
+    var tpl = sel ? sel.value : 'convite';
+    var msg = templates[tpl] || '';
+    var link = document.getElementById('waLink' + id);
+    if (link) { link.href = 'https://wa.me/55' + num + '?text=' + msg; }
+}
+function filtrarLeads() {
+    var q = document.getElementById('buscaLeads').value.toLowerCase();
+    var items = document.querySelectorAll('#listaLeads .item-lead');
+    items.forEach(function(el) {
+        var nome = el.getAttribute('data-nome') || '';
+        var tel  = (el.getAttribute('data-tel')  || '').toLowerCase();
+        el.style.display = (nome.indexOf(q) !== -1 || tel.indexOf(q) !== -1) ? '' : 'none';
     });
 }
 if ('serviceWorker' in navigator) {
