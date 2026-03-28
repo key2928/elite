@@ -347,8 +347,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             $orig_name = basename($_FILES['arquivo']['name']);
             $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
-            $finfo     = new finfo(FILEINFO_MIME_TYPE);
-            $mime_type = $finfo->file($_FILES['arquivo']['tmp_name']);
+            $finfo     = class_exists('finfo') ? new finfo(FILEINFO_MIME_TYPE) : null;
+            $mime_type = $finfo ? $finfo->file($_FILES['arquivo']['tmp_name']) : mime_content_type($_FILES['arquivo']['tmp_name']);
             if (!in_array($ext, $allowed_exts) || !in_array($mime_type, $allowed_mimes)) {
                 $msg_erro = 'Tipo de arquivo não permitido.';
             } elseif ($_FILES['arquivo']['size'] > 50 * 1024 * 1024) {
