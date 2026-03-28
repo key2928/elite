@@ -236,6 +236,7 @@ CREATE TABLE IF NOT EXISTS `presencas` (
 -- ============================================================
 
 ALTER TABLE `usuarios`
+    ADD COLUMN IF NOT EXISTS `restricoes_medicas`  TEXT             DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS `data_nascimento`     DATE             DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS `tipo_sanguineo`      VARCHAR(5)       DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS `peso`                DECIMAL(5,2)     DEFAULT NULL,
