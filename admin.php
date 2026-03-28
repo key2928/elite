@@ -169,6 +169,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([(int)($_POST['ba_id'] ?? 0)]);
         $msg_sucesso = 'Brinde marcado como entregue!';
     }
+
+    // 16. Adicionar Pasta da Turma
+    if ($acao === 'add_pasta') {
+        $turma_id   = (int)($_POST['turma_id'] ?? 0);
+        $titulo     = trim($_POST['titulo'] ?? 'Pasta da Turma');
+        $descricao  = trim($_POST['descricao'] ?? '');
+        $drive_link = trim($_POST['drive_link'] ?? '');
+        if ($turma_id && $drive_link !== '') {
+            $pdo->prepare("INSERT INTO pastas_turma (turma_id, titulo, descricao, drive_link) VALUES (?,?,?,?)")
+                ->execute([$turma_id, $titulo ?: 'Pasta da Turma', $descricao, $drive_link]);
+            $msg_sucesso = 'Pasta configurada com sucesso!';
+        } else {
+            $msg_erro = 'Selecione a turma e informe o link do Google Drive.';
+        }
+    }
+
+    // 17. Editar Pasta da Turma
+    if ($acao === 'editar_pasta') {
+        $id_pasta   = (int)($_POST['id'] ?? 0);
+        $titulo     = trim($_POST['titulo'] ?? 'Pasta da Turma');
+        $descricao  = trim($_POST['descricao'] ?? '');
+        $drive_link = trim($_POST['drive_link'] ?? '');
+        if ($id_pasta && $drive_link !== '') {
+            $pdo->prepare("UPDATE pastas_turma SET titulo=?, descricao=?, drive_link=? WHERE id=?")
+                ->execute([$titulo ?: 'Pasta da Turma', $descricao, $drive_link, $id_pasta]);
+            $msg_sucesso = 'Pasta atualizada!';
+        }
+    }
+
+    // 18. Excluir Pasta da Turma
+    if ($acao === 'excluir_pasta') {
+        $pdo->prepare("DELETE FROM pastas_turma WHERE id=?")->execute([(int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Pasta removida.';
+    }
 }
 
 // ── Dados ───────────────────────────────────────────────────
@@ -211,6 +245,11 @@ try {
 
 $brindes_admin = [];
 try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY nome")->fetchAll(); } catch (Exception $e) {}
+
+$pastas_turma = [];
+try {
+    $pastas_turma = $pdo->query("SELECT pt.*, t.nome as turma_nome FROM pastas_turma pt JOIN turmas t ON pt.turma_id = t.id ORDER BY t.nome")->fetchAll();
+} catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -291,6 +330,7 @@ try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY
         <button class="tab-btn" onclick="openTab('planos',this)"><i class="fas fa-tags"></i> Planos</button>
         <button class="tab-btn" onclick="openTab('mural',this)"><i class="fas fa-bullhorn"></i> Mural</button>
         <button class="tab-btn" onclick="openTab('brindes',this)"><i class="fas fa-gift"></i> Brindes</button>
+        <button class="tab-btn" onclick="openTab('pastas',this)"><i class="fab fa-google-drive"></i> Pastas</button>
     </div>
 
     <!-- CAIXA -->
@@ -719,6 +759,73 @@ try { $brindes_admin = $pdo->query("SELECT * FROM brindes WHERE ativo=1 ORDER BY
         </div>
     </div>
 
+    <!-- PASTAS DAS TURMAS -->
+    <div id="pastas" class="tab-content">
+        <div class="card" style="border-color:#4285F4;background:linear-gradient(180deg,var(--card),rgba(66,133,244,.06))">
+            <h3 class="card-titulo" style="color:#4285F4"><i class="fab fa-google-drive" style="color:#4285F4"></i> Configurar Pasta por Turma</h3>
+            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Associe um link do Google Drive a uma turma. Apenas os membros da turma verão a pasta.</p>
+            <form method="POST">
+                <input type="hidden" name="acao" value="add_pasta">
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-layer-group"></i> Turma</label>
+                <select name="turma_id" required>
+                    <option value="">Selecione a turma...</option>
+                    <?php foreach ($turmas as $t): ?>
+                        <option value="<?= (int)$t['id'] ?>"><?= e($t['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-tag"></i> Título da Pasta</label>
+                <input type="text" name="titulo" placeholder="Ex: Pasta da Turma Feminina" value="Pasta da Turma">
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-align-left"></i> Descrição (opcional)</label>
+                <textarea name="descricao" rows="2" placeholder="Acesse fotos, vídeos e documentos da turma."></textarea>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fab fa-google-drive"></i> Link da Pasta Google Drive</label>
+                <input type="url" name="drive_link" placeholder="https://drive.google.com/drive/folders/..." required>
+                <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#4285F4,#0F9D58);box-shadow:0 5px 15px rgba(66,133,244,.3)"><i class="fas fa-plus"></i> Salvar Pasta</button>
+            </form>
+        </div>
+
+        <?php if (empty($pastas_turma)): ?>
+            <div class="card"><p style="color:var(--cinza);font-size:13px;text-align:center">Nenhuma pasta configurada ainda.</p></div>
+        <?php else: ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-folder-open"></i> Pastas Configuradas</h3>
+            <?php foreach ($pastas_turma as $pasta): ?>
+                <div class="item-lista">
+                    <div class="item-topo">
+                        <div>
+                            <span class="item-nome"><i class="fab fa-google-drive" style="color:#4285F4"></i> <?= e($pasta['titulo']) ?></span><br>
+                            <span style="font-size:12px;color:#7b2cbf"><i class="fas fa-layer-group"></i> <?= e($pasta['turma_nome']) ?></span>
+                            <?php if (!empty($pasta['descricao'])): ?>
+                                <br><span style="font-size:11px;color:var(--cinza)"><?= e($pasta['descricao']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="btn-editar" onclick="toggleEditPasta(<?= (int)$pasta['id'] ?>)"><i class="fas fa-edit"></i></button>
+                            <form method="POST" onsubmit="return confirm('Excluir esta pasta?')">
+                                <input type="hidden" name="acao" value="excluir_pasta">
+                                <input type="hidden" name="id" value="<?= (int)$pasta['id'] ?>">
+                                <button type="submit" class="btn-excluir"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="editPasta<?= (int)$pasta['id'] ?>" class="edit-inline">
+                        <form method="POST">
+                            <input type="hidden" name="acao" value="editar_pasta">
+                            <input type="hidden" name="id" value="<?= (int)$pasta['id'] ?>">
+                            <input type="text" name="titulo" value="<?= e($pasta['titulo']) ?>" placeholder="Título" required>
+                            <textarea name="descricao" rows="2" placeholder="Descrição"><?= e($pasta['descricao'] ?? '') ?></textarea>
+                            <input type="url" name="drive_link" value="<?= e($pasta['drive_link']) ?>" placeholder="Link Google Drive" required>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none">Salvar</button>
+                                <button type="button" onclick="toggleEditPasta(<?= (int)$pasta['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
 </div>
 
 <script>
@@ -742,6 +849,10 @@ function toggleEditUsuario(id) {
 }
 function toggleEditPlano(id) {
     var el = document.getElementById('editPlano' + id);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+function toggleEditPasta(id) {
+    var el = document.getElementById('editPasta' + id);
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
 function toggleTurmaField() {

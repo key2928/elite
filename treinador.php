@@ -51,6 +51,8 @@ function calcularDiasTreinados(string $mes, string $dia_semana): array {
 $msg_sucesso = '';
 $msg_erro = '';
 $prof_id = (int)$_SESSION['usuario_id'];
+$recibo_dados = null;
+$forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão de Crédito', 'debito' => 'Cartão de Débito', 'dinheiro' => 'Dinheiro'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
@@ -136,14 +138,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 4. Pagamento
     if ($acao === 'pagamento') {
         $plano_id = (int)($_POST['plano_id'] ?? 0);
-        $stmt = $pdo->prepare("SELECT duracao_meses FROM planos_tabela WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT duracao_meses, nome_plano FROM planos_tabela WHERE id = ?");
         $stmt->execute([$plano_id]);
-        $duracao = $stmt->fetchColumn();
-        if ($duracao) {
-            $vencimento = date('Y-m-d', strtotime("+{$duracao} months"));
+        $plano_row = $stmt->fetch();
+        if ($plano_row) {
+            $vencimento = date('Y-m-d', strtotime("+{$plano_row['duracao_meses']} months"));
             $pdo->prepare("INSERT INTO pagamentos (aluna_id, treinador_id, plano_id, valor_pago, data_pagamento, data_vencimento, observacao_aluna, forma_pagamento) VALUES (?,?,?,?,?,?,?,?)")
                 ->execute([$_POST['aluna_id'], $_SESSION['usuario_id'], $plano_id, $_POST['valor'] ?? 0, date('Y-m-d'), $vencimento, $_POST['obs'] ?? '', $_POST['forma_pagamento'] ?? 'pix']);
             $msg_sucesso = 'Pagamento registado com sucesso!';
+            // Dados para o recibo
+            $stmtAluno = $pdo->prepare("SELECT nome FROM usuarios WHERE id=?");
+            $stmtAluno->execute([(int)$_POST['aluna_id']]);
+            $stmtProf = $pdo->prepare("SELECT nome FROM usuarios WHERE id=?");
+            $stmtProf->execute([$_SESSION['usuario_id']]);
+            $recibo_dados = [
+                'aluno'    => ($stmtAluno->fetchColumn() ?: '—'),
+                'plano'    => $plano_row['nome_plano'],
+                'valor'    => number_format((float)($_POST['valor'] ?? 0), 2, ',', '.'),
+                'forma'    => $forma_labels[$_POST['forma_pagamento'] ?? 'pix'] ?? 'PIX',
+                'treinador'=> ($stmtProf->fetchColumn() ?: '—'),
+                'data'     => date('d/m/Y'),
+                'vencimento' => date('d/m/Y', strtotime($vencimento)),
+                'obs'      => trim($_POST['obs'] ?? ''),
+            ];
         }
     }
 
@@ -280,7 +297,17 @@ try {
     }
 } catch (Exception $e) {}
 
-$forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão Crédito', 'debito' => 'Cartão Débito', 'dinheiro' => 'Dinheiro'];
+// Pastas das turmas deste treinador
+$pastas_minhas_turmas = [];
+try {
+    $turma_ids = array_column($minhas_turmas, 'id');
+    if (!empty($turma_ids)) {
+        $inPT = implode(',', array_fill(0, count($turma_ids), '?'));
+        $stmtPT = $pdo->prepare("SELECT pt.*, t.nome as turma_nome FROM pastas_turma pt JOIN turmas t ON pt.turma_id = t.id WHERE pt.turma_id IN ($inPT) AND pt.ativo = 1 ORDER BY t.nome");
+        $stmtPT->execute($turma_ids);
+        $pastas_minhas_turmas = $stmtPT->fetchAll();
+    }
+} catch (Exception $e) {}
 
 // Brindes disponíveis
 $brindes_disponiveis = [];
@@ -385,14 +412,29 @@ try {
     <?php if ($msg_sucesso): ?><div class="alerta"><i class="fas fa-check-circle"></i> <?= e($msg_sucesso) ?></div><?php endif; ?>
     <?php if ($msg_erro): ?><div class="alerta-erro"><i class="fas fa-exclamation-triangle"></i> <?= e($msg_erro) ?></div><?php endif; ?>
 
-    <!-- Google Drive — Turma Feminina -->
+    <!-- Pastas das Turmas -->
+    <?php if (!empty($pastas_minhas_turmas)): ?>
+    <?php foreach ($pastas_minhas_turmas as $pasta): ?>
+    <?php $drive_folder_id = extractDriveFolderId($pasta['drive_link']); ?>
     <div class="card" style="border-color:#4285F4;background:linear-gradient(180deg,var(--card),rgba(66,133,244,.07))">
-        <h3 class="card-titulo" style="color:#4285F4"><i class="fab fa-google-drive" style="background:none;-webkit-text-fill-color:#4285F4"></i> Pasta da Turma Feminina</h3>
-        <p style="font-size:13px;color:var(--cinza);margin-top:-10px;margin-bottom:16px">Acesse a pasta compartilhada para fazer upload de arquivos, fotos e documentos da turma.</p>
-        <a href="https://drive.google.com/drive/folders/1TquTj5UeShvSp0fKaw5TjEK6dYmB_iNu" target="_blank" rel="noopener noreferrer" class="btn-submit" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(90deg,#4285F4,#0F9D58);box-shadow:0 5px 15px rgba(66,133,244,.35);text-decoration:none;max-width:320px">
-            <i class="fab fa-google-drive"></i> Abrir Google Drive
-        </a>
+        <h3 class="card-titulo" style="color:#4285F4"><i class="fab fa-google-drive" style="background:none;-webkit-text-fill-color:#4285F4"></i> <?= e($pasta['titulo']) ?></h3>
+        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:6px"><i class="fas fa-layer-group" style="color:#7b2cbf"></i> <?= e($pasta['turma_nome']) ?></p>
+        <?php if (!empty($pasta['descricao'])): ?>
+        <p style="font-size:13px;color:var(--cinza);margin-bottom:16px"><?= e($pasta['descricao']) ?></p>
+        <?php endif; ?>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <?php if ($drive_folder_id): ?>
+            <button type="button" onclick="abrirGaleria('<?= htmlspecialchars($drive_folder_id, ENT_QUOTES) ?>','<?= e($pasta['titulo']) ?>')" class="btn-submit" style="display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(90deg,#4285F4,#0F9D58);box-shadow:0 5px 15px rgba(66,133,244,.35);flex:1">
+                <i class="fas fa-images"></i> Ver Galeria
+            </button>
+            <?php endif; ?>
+            <a href="<?= e($pasta['drive_link']) ?>" target="_blank" rel="noopener noreferrer" class="btn-submit" style="display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(90deg,#0F9D58,#4285F4);box-shadow:0 5px 15px rgba(15,157,88,.3);text-decoration:none;flex:1">
+                <i class="fab fa-google-drive"></i> Upload / Drive
+            </a>
+        </div>
     </div>
+    <?php endforeach; ?>
+    <?php endif; ?>
 
     <!-- Chamada -->
     <div class="card" style="border-left:4px solid #2ecc71">
@@ -794,7 +836,87 @@ try {
 
 </div>
 
+<!-- Modal: Galeria da Turma -->
+<div id="modalGaleria" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;flex-direction:column;align-items:stretch">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:#140d1c;border-bottom:1px solid #2a1b3d;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:12px">
+            <i class="fab fa-google-drive" style="color:#4285F4;font-size:22px"></i>
+            <span id="galeriaTitulo" style="font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:1px"></span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+            <a id="galeriaLinkDrive" href="#" target="_blank" rel="noopener noreferrer" style="background:linear-gradient(90deg,#0F9D58,#4285F4);color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:800;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="fab fa-google-drive"></i> Upload</a>
+            <button onclick="fecharGaleria()" style="background:#2a1b3d;border:none;color:#ff4444;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative">
+        <iframe id="galeriaFrame" src="" style="width:100%;height:100%;border:none;background:#000" allowfullscreen></iframe>
+    </div>
+    <div style="padding:12px 20px;background:#140d1c;border-top:1px solid #2a1b3d;text-align:center;font-size:11px;color:#b5a8c9;flex-shrink:0">
+        <i class="fas fa-info-circle"></i> Para fazer <strong>upload</strong>, clique em "Upload / Drive" acima · Para <strong>baixar</strong> um arquivo, clique nele na galeria e escolha Download
+    </div>
+</div>
+
+<!-- Modal: Recibo de Pagamento -->
+<?php if ($recibo_dados): ?>
+<div id="modalRecibo" style="display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.88);z-index:9998;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#140d1c;border:1px solid #2ecc71;border-radius:20px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.8)">
+        <div style="text-align:center;margin-bottom:20px">
+            <div style="font-size:36px;margin-bottom:6px">🧾</div>
+            <h3 style="margin:0;font-size:16px;text-transform:uppercase;letter-spacing:2px;color:#2ecc71;font-weight:800">Recibo de Pagamento</h3>
+            <p style="font-size:11px;color:#b5a8c9;margin:4px 0 0">Elite Thai Girls · <?= e($recibo_dados['data']) ?></p>
+        </div>
+        <div style="background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.2);border-radius:14px;padding:18px;margin-bottom:18px">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #2a1b3d;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-user" style="color:#d62bc5;margin-right:6px;width:16px;text-align:center"></i> Aluno(a)</span>
+                <strong><?= e($recibo_dados['aluno']) ?></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #2a1b3d;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-tag" style="color:#f1c40f;margin-right:6px;width:16px;text-align:center"></i> Plano</span>
+                <strong><?= e($recibo_dados['plano']) ?></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #2a1b3d;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-dollar-sign" style="color:#2ecc71;margin-right:6px;width:16px;text-align:center"></i> Valor</span>
+                <strong style="color:#2ecc71;font-size:15px">R$ <?= e($recibo_dados['valor']) ?></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #2a1b3d;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-credit-card" style="color:#3498db;margin-right:6px;width:16px;text-align:center"></i> Forma</span>
+                <strong><?= e($recibo_dados['forma']) ?></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #2a1b3d;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-calendar-check" style="color:#7b2cbf;margin-right:6px;width:16px;text-align:center"></i> Vencimento</span>
+                <strong><?= e($recibo_dados['vencimento']) ?></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px">
+                <span style="color:#b5a8c9"><i class="fas fa-user-tie" style="color:#FF8C00;margin-right:6px;width:16px;text-align:center"></i> Lançado por</span>
+                <strong><?= e($recibo_dados['treinador']) ?></strong>
+            </div>
+            <?php if ($recibo_dados['obs'] !== ''): ?>
+            <div style="padding:8px 0 0;font-size:12px;color:#b5a8c9;border-top:1px dashed #2a1b3d;margin-top:4px"><i class="fas fa-comment-alt" style="color:#b5a8c9;margin-right:4px"></i> <?= e($recibo_dados['obs']) ?></div>
+            <?php endif; ?>
+        </div>
+        <button onclick="document.getElementById('modalRecibo').style.display='none'" class="btn-submit" style="background:linear-gradient(90deg,#2ecc71,#27ae60);color:#000;box-shadow:0 5px 15px rgba(46,204,113,.3)"><i class="fas fa-check-circle"></i> Fechar Recibo</button>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
+function abrirGaleria(folderId, titulo) {
+    document.getElementById('galeriaTitulo').textContent = titulo;
+    var embedUrl = 'https://drive.google.com/embeddedfolderview?id=' + folderId + '#grid';
+    document.getElementById('galeriaFrame').src = embedUrl;
+    document.getElementById('galeriaLinkDrive').href = 'https://drive.google.com/drive/folders/' + folderId;
+    var modal = document.getElementById('modalGaleria');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function fecharGaleria() {
+    document.getElementById('modalGaleria').style.display = 'none';
+    document.getElementById('galeriaFrame').src = '';
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') fecharGaleria();
+});
 function abrirEdicao(id, nome, email, telefone) {
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_nome').value = nome;
