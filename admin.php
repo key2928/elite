@@ -174,6 +174,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_sucesso = 'Status da indicação atualizado!';
     }
 
+    // 11b. Excluir Lead
+    if ($acao === 'excluir_lead') {
+        $pdo->prepare("DELETE FROM leads_indicacoes WHERE id = ?")
+            ->execute([(int)($_POST['id'] ?? 0)]);
+        $msg_sucesso = 'Lead removido!';
+    }
+
     // 12. Pagamento Admin
     if ($acao === 'add_pagamento_admin') {
         $plano_id = (int)($_POST['plano_id'] ?? 0);
@@ -460,34 +467,64 @@ try {
 
     <!-- LEADS -->
     <div id="leads" class="tab-content">
+        <?php
+        $leads_stats = ['total' => count($leads), 'novo' => 0, 'contatado' => 0, 'matriculado' => 0];
+        foreach ($leads as $l) { if (isset($leads_stats[$l['status']])) { $leads_stats[$l['status']]++; } }
+        ?>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+            <div style="background:var(--card);border:1px solid rgba(241,196,15,.3);border-radius:14px;padding:14px;text-align:center">
+                <div style="font-size:26px;font-weight:800;color:#f1c40f"><?= $leads_stats['total'] ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px">Total</div>
+            </div>
+            <div style="background:var(--card);border:1px solid rgba(52,152,219,.3);border-radius:14px;padding:14px;text-align:center">
+                <div style="font-size:26px;font-weight:800;color:#3498db"><?= $leads_stats['contatado'] ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px">Contatados</div>
+            </div>
+            <div style="background:var(--card);border:1px solid rgba(46,204,113,.3);border-radius:14px;padding:14px;text-align:center">
+                <div style="font-size:26px;font-weight:800;color:#2ecc71"><?= $leads_stats['matriculado'] ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px">Matriculados</div>
+            </div>
+        </div>
         <div class="card">
             <h3 class="card-titulo"><i class="fas fa-ticket-alt"></i> Convidados (Leads)</h3>
-            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Pessoas que resgataram o Passe Livre.</p>
+            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:15px">Pessoas que resgataram o Passe Livre VIP.</p>
             <div style="max-height:500px;overflow-y:auto">
-                <?php foreach ($leads as $lead): ?>
+                <?php foreach ($leads as $lead):
+                    $wa_msg = urlencode("Olá " . $lead['nome_convidada'] . "! 👋 Somos da Elite Thai Girls. Você recebeu um Passe Livre VIP indicado por " . $lead['quem_indicou'] . ". Gostaríamos de agendar sua aula experimental gratuita! Que dia fica melhor? 🥊");
+                    $wa_num = preg_replace('/\D/', '', $lead['telefone_convidada']);
+                    $data_fmt = date('d/m/Y H:i', strtotime($lead['data_indicacao']));
+                ?>
                     <div class="item-lista">
                         <div class="item-topo">
                             <span class="item-nome"><?= e($lead['nome_convidada']) ?></span>
-                            <span class="badge status-<?= e($lead['status']) ?>"><i class="fas fa-circle"></i> <?= e($lead['status']) ?></span>
+                            <span class="badge status-<?= e($lead['status']) ?>"><i class="fas fa-circle" style="font-size:7px"></i> <?= ucfirst(e($lead['status'])) ?></span>
                         </div>
                         <div style="font-size:12px;color:var(--cinza);margin-bottom:10px">
-                            <i class="fab fa-whatsapp" style="color:#2ecc71"></i> <?= e($lead['telefone_convidada']) ?><br>
-                            <i class="fas fa-gift" style="color:#d62bc5"></i> Indicado por: <strong><?= e($lead['quem_indicou']) ?></strong>
+                            <i class="fab fa-whatsapp" style="color:#2ecc71"></i> <?= e($lead['telefone_convidada']) ?>
+                            &nbsp;·&nbsp;<i class="fas fa-gift" style="color:#d62bc5"></i> Indicado por <strong style="color:#fff"><?= e($lead['quem_indicou']) ?></strong>
+                            <br><i class="fas fa-clock" style="opacity:.5"></i> <span style="opacity:.5"><?= $data_fmt ?></span>
                         </div>
-                        <form method="POST" style="display:flex;gap:10px">
-                            <input type="hidden" name="acao" value="atualizar_lead">
-                            <input type="hidden" name="id" value="<?= (int)$lead['id'] ?>">
-                            <select name="status" style="margin:0;padding:8px;font-size:12px">
-                                <option value="novo" <?= $lead['status'] === 'novo' ? 'selected' : '' ?>>Novo</option>
-                                <option value="contatado" <?= $lead['status'] === 'contatado' ? 'selected' : '' ?>>Contactado</option>
-                                <option value="matriculado" <?= $lead['status'] === 'matriculado' ? 'selected' : '' ?>>Matriculado</option>
-                            </select>
-                            <button type="submit" class="btn-submit" style="padding:8px;font-size:12px;width:auto"><i class="fas fa-save"></i></button>
-                            <a href="https://wa.me/55<?= preg_replace('/\D/', '', $lead['telefone_convidada']) ?>" target="_blank" class="btn-submit" style="padding:8px;font-size:12px;width:auto;background:#25D366;text-decoration:none;text-align:center;box-shadow:none"><i class="fab fa-whatsapp"></i></a>
-                        </form>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <form method="POST" style="display:contents">
+                                <input type="hidden" name="acao" value="atualizar_lead">
+                                <input type="hidden" name="id" value="<?= (int)$lead['id'] ?>">
+                                <select name="status" style="margin:0;padding:8px 10px;font-size:12px;flex:1;min-width:120px">
+                                    <option value="novo" <?= $lead['status'] === 'novo' ? 'selected' : '' ?>>🟡 Novo</option>
+                                    <option value="contatado" <?= $lead['status'] === 'contatado' ? 'selected' : '' ?>>🔵 Contatado</option>
+                                    <option value="matriculado" <?= $lead['status'] === 'matriculado' ? 'selected' : '' ?>>🟢 Matriculado</option>
+                                </select>
+                                <button type="submit" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto" title="Salvar"><i class="fas fa-save"></i></button>
+                            </form>
+                            <a href="https://wa.me/55<?= $wa_num ?>?text=<?= $wa_msg ?>" target="_blank" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto;background:#25D366;text-decoration:none;text-align:center;box-shadow:none" title="Abrir WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                            <form method="POST" onsubmit="return confirm('Remover este lead?')" style="display:contents">
+                                <input type="hidden" name="acao" value="excluir_lead">
+                                <input type="hidden" name="id" value="<?= (int)$lead['id'] ?>">
+                                <button type="submit" class="btn-submit" style="padding:8px 12px;font-size:12px;width:auto;background:rgba(255,68,68,.2);box-shadow:none;border:1px solid #ff4444;color:#ff4444" title="Remover"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
                     </div>
                 <?php endforeach; ?>
-                <?php if (empty($leads)): ?><p style="color:var(--cinza);font-size:13px;text-align:center">Nenhuma indicação ainda.</p><?php endif; ?>
+                <?php if (empty($leads)): ?><p style="color:var(--cinza);font-size:13px;text-align:center;padding:20px 0">Nenhuma indicação ainda. Os Passes Livres resgatados aparecerão aqui.</p><?php endif; ?>
             </div>
         </div>
     </div>

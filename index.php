@@ -155,6 +155,27 @@ try {
         }
     } catch (Exception $ex) {}
 
+    // Indicações VIP — estatísticas do aluno
+    $total_indicacoes      = 0;
+    $matriculados_indicacoes = 0;
+    try {
+        $stmtInd = $pdo->prepare("SELECT status FROM leads_indicacoes WHERE aluna_id_indicou = ?");
+        $stmtInd->execute([$id]);
+        $rows_ind = $stmtInd->fetchAll();
+        $total_indicacoes = count($rows_ind);
+        foreach ($rows_ind as $row_ind) {
+            if ($row_ind['status'] === 'matriculado') { $matriculados_indicacoes++; }
+        }
+    } catch (Exception $ex) {}
+
+    // URL dinâmica do convite
+    $protocolo_site  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $protocolo_site = (strtolower(trim(explode(',', $_SERVER['HTTP_X_FORWARDED_PROTO'])[0])) === 'https') ? 'https' : 'http';
+    }
+    $dir_site        = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+    $link_convite    = $protocolo_site . '://' . $_SERVER['HTTP_HOST'] . $dir_site . '/convite.php?ref=' . $id;
+
     // Dica do Dia
     $dicas_dia = [
         '💪 Aqueça bem antes de cada treino para prevenir lesões e melhorar o desempenho.',
@@ -369,14 +390,28 @@ try {
 
     <!-- Passe Livre VIP -->
     <div class="card" style="border-color:#38ef7d;background:linear-gradient(180deg,var(--card),rgba(56,239,125,.05))">
-        <h3 class="card-titulo" style="color:#38ef7d"><i class="fas fa-ticket-alt" style="background:none;-webkit-text-fill-color:#38ef7d"></i> Passe Livre VIP</h3>
-        <p style="font-size:13px;color:var(--cinza);margin-bottom:15px;line-height:1.5">Presenteie um(a) amigo(a) com <strong>1 Aula VIP Gratuita</strong>!</p>
+        <h3 class="card-titulo" style="color:#38ef7d"><i class="fas fa-ticket-alt" style="background:none;-webkit-text-fill-color:#38ef7d"></i> Indicação VIP</h3>
+        <p style="font-size:13px;color:var(--cinza);margin-bottom:15px;line-height:1.5">Indique um(a) amigo(a) e presenteie com <strong style="color:#fff">1 Aula VIP Gratuita</strong>! Compartilhe seu link exclusivo.</p>
+
+        <?php if ($total_indicacoes > 0): ?>
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+            <div style="flex:1;background:rgba(56,239,125,.08);border:1px solid rgba(56,239,125,.3);border-radius:12px;padding:12px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:#38ef7d"><?= $total_indicacoes ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Convidados</div>
+            </div>
+            <div style="flex:1;background:rgba(214,43,197,.08);border:1px solid rgba(214,43,197,.3);border-radius:12px;padding:12px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:#d62bc5"><?= $matriculados_indicacoes ?></div>
+                <div style="font-size:10px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Matriculados</div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div style="display:flex;gap:10px;margin-bottom:15px">
-            <input type="text" id="linkConvite" value="https://iubsites.com/academia/convite.php?ref=<?= $id ?>" readonly class="input-vip">
+            <input type="text" id="linkConvite" value="<?= e($link_convite) ?>" readonly class="input-vip">
             <button onclick="copiarLink(this)" class="btn-copiar"><i class="fas fa-copy"></i></button>
         </div>
         <button onclick="compartilharLink()" class="btn-indicar">
-            <i class="fas fa-share-nodes"></i> Compartilhar Convite
+            <i class="fas fa-share-nodes"></i> Compartilhar Convite VIP
         </button>
     </div>
 
