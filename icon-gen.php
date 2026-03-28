@@ -25,8 +25,8 @@ imagesavealpha($img, true);
 // Colors
 $bg1    = imagecolorallocate($img, 11,   7,  16);  // #0b0710
 $bg2    = imagecolorallocate($img, 26,  10,  46);  // #1a0a2e
-$pink   = imagecolorallocate($img, 232,  50, 154);  // #e8329a  (hot pink glove)
-$pinkLt = imagecolorallocate($img, 255, 133, 200);  // #ff85c8  (light pink highlight)
+$pink   = imagecolorallocate($img, 232,  50, 154);  // #e8329a  (hot pink)
+$pinkLt = imagecolorallocate($img, 255, 133, 200);  // #ff85c8  (light pink)
 $purple = imagecolorallocate($img, 123,  44, 191);  // #7b2cbf
 $white  = imagecolorallocate($img,  255,255, 255);
 $gray   = imagecolorallocate($img,  180, 168, 201);
@@ -41,59 +41,36 @@ for ($y = 0; $y < $size; $y++) {
     imageline($img, 0, $y, $size - 1, $y, $c);
 }
 
-// Rounded rect helper
-function roundedRect($img, $x, $y, $w, $h, $r, $color) {
-    imagefilledrectangle($img, $x + $r, $y, $x + $w - $r, $y + $h, $color);
-    imagefilledrectangle($img, $x, $y + $r, $x + $w, $y + $h - $r, $color);
-    imagefilledellipse($img, $x + $r,     $y + $r,     $r * 2, $r * 2, $color);
-    imagefilledellipse($img, $x + $w - $r, $y + $r,    $r * 2, $r * 2, $color);
-    imagefilledellipse($img, $x + $r,     $y + $h - $r, $r * 2, $r * 2, $color);
-    imagefilledellipse($img, $x + $w - $r, $y + $h - $r,$r * 2, $r * 2, $color);
-}
-
 $sc = $size / 192; // scale factor
 
-// Draw single centered glove (main fist block)
-$gx = (int)(46  * $sc);
-$gy = (int)(38  * $sc);
-$gw = (int)(100 * $sc);
-$gh = (int)(82  * $sc);
-$gr = (int)(28  * $sc);
-roundedRect($img, $gx, $gy, $gw, $gh, $gr, $pink);
+// Draw "ELITE" text (centered)
+$font   = ($size >= 192) ? 5 : 4;
+$textW  = imagefontwidth($font) * strlen('ELITE');
+$textX  = (int)(($size - $textW) / 2);
+$textY  = (int)($size * 0.30);
+imagestring($img, $font, $textX, $textY, 'ELITE', $pinkLt);
 
-// Knuckle highlight
-$kw = (int)(84 * $sc); $kh = (int)(28 * $sc); $kr = (int)(14 * $sc);
-$kc = imagecolorallocatealpha($img, 255, 133, 200, 55);
-roundedRect($img, $gx + (int)(8*$sc), $gy + (int)(5*$sc), $kw, $kh, $kr, $kc);
+// Separator line
+$lineY = $textY + imagefontheight($font) + (int)(4 * $sc);
+imageline($img, (int)(16 * $sc), $lineY, $size - (int)(16 * $sc), $lineY, $pink);
 
-// Thumb
-$tc = imagecolorallocatealpha($img, 232, 50, 154, 20);
-imagefilledellipse($img, $gx - (int)(6*$sc), $gy + (int)(22*$sc), (int)(36*$sc), (int)(26*$sc), $pink);
-imagefilledellipse($img, $gx - (int)(6*$sc), $gy + (int)(22*$sc), (int)(24*$sc), (int)(17*$sc), $pinkLt);
+// Draw "THAI" text (centered)
+$font2  = ($size >= 192) ? 5 : 4;
+$textW2 = imagefontwidth($font2) * strlen('THAI');
+$textX2 = (int)(($size - $textW2) / 2);
+$textY2 = $lineY + (int)(10 * $sc);
+imagestring($img, $font2, $textX2, $textY2, 'THAI', $white);
 
-// Cuff / wrist band
-$cx = (int)(62  * $sc);
-$cy = (int)(114 * $sc);
-$cw = (int)(68  * $sc);
-$ch = (int)(40  * $sc);
-$cr = (int)(11  * $sc);
-roundedRect($img, $cx, $cy, $cw, $ch, $cr, $purple);
-// Cuff stripe
-$stripe = imagecolorallocatealpha($img, 255, 255, 255, 90);
-imagefilledrectangle($img, $cx, $cy + (int)(10*$sc), $cx + $cw, $cy + (int)(20*$sc), $stripe);
+// Separator line
+$lineY2 = $textY2 + imagefontheight($font2) + (int)(4 * $sc);
+imageline($img, (int)(16 * $sc), $lineY2, $size - (int)(16 * $sc), $lineY2, $purple);
 
-// Text "ELITE THAI"
-$font = 4;
-$textW = imagefontwidth($font) * strlen('ELITE');
-$textX = (int)(($size - $textW) / 2);
-imagestring($img, $font, $textX, (int)(158 * $sc), 'ELITE', $pinkLt);
-
-// Text "GIRLS"
-$font2 = 3;
-$txt2 = 'GIRLS';
-$tw2  = imagefontwidth($font2) * strlen($txt2);
-$tx2  = (int)(($size - $tw2) / 2);
-imagestring($img, $font2, $tx2, (int)(174 * $sc), $txt2, $white);
+// Draw "GIRLS" text (centered)
+$font3  = ($size >= 192) ? 4 : 3;
+$textW3 = imagefontwidth($font3) * strlen('GIRLS');
+$textX3 = (int)(($size - $textW3) / 2);
+$textY3 = $lineY2 + (int)(10 * $sc);
+imagestring($img, $font3, $textX3, $textY3, 'GIRLS', $gray);
 
 imagepng($img);
 imagedestroy($img);

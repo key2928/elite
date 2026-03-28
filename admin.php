@@ -314,7 +314,7 @@ try {
 <div class="app">
 
     <div class="header">
-        <h1><img src="icon.svg" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;margin-right:6px"><span>Elite Thai</span> Girls | Admin</h1>
+        <h1><span>Elite Thai</span> Girls | Admin</h1>
         <a href="logout.php" class="btn-sair" title="Sair"><i class="fas fa-power-off"></i></a>
     </div>
 

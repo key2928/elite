@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         body{background:#0a0010;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;min-height:100dvh;padding:20px 20px 40px;position:relative;overflow-x:hidden}
         #stars-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
         .brand{text-align:center;margin-bottom:28px;position:relative;z-index:1}
-        .brand-logo{width:80px;height:80px;margin:0 auto 12px;display:block;filter:drop-shadow(0 0 12px rgba(123,44,191,.6))}
+        .brand-logo{width:200px;height:auto;margin:0 auto 12px;display:block;filter:drop-shadow(0 0 12px rgba(123,44,191,.6))}
         .brand-name{color:#fff;font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:2px;line-height:1.2}
         .brand-name span{color:#c084fc}
         .box{background:rgba(15,5,25,.85);backdrop-filter:blur(10px);padding:36px 30px;border-radius:20px;width:100%;max-width:480px;text-align:center;box-shadow:0 0 40px rgba(123,44,191,.3),0 0 80px rgba(123,44,191,.1);border:1px solid rgba(123,44,191,.25);position:relative;z-index:1}
@@ -124,7 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <canvas id="stars-canvas"></canvas>
 <div class="brand">
     <img src="icon.svg" alt="Elite Thai Girls" class="brand-logo">
-    <div class="brand-name"><span>Elite Thai</span> Girls</div>
 </div>
 <div class="box">
     <?php if ($erro): ?><div class="alerta-erro"><?= e($erro) ?></div><?php endif; ?>

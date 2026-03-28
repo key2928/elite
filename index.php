@@ -279,7 +279,6 @@ try {
 
 <!-- PWA Install Banner -->
 <div id="pwa-banner">
-    <img src="icon.svg" alt="Elite Thai Girls">
     <div class="pwa-txt">
         <strong>Elite Thai Girls</strong>
         <span>Instale o app e acesse mais rápido!</span>
@@ -294,7 +293,6 @@ try {
     <div class="header card" style="padding:20px;border-radius:25px">
         <div class="user-info">
             <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;font-weight:600;letter-spacing:1px;display:flex;align-items:center;gap:6px">
-                <img src="icon.svg" alt="" style="width:18px;height:18px;border-radius:4px;vertical-align:middle">
                 Elite Thai Girls
             </div>
             <h1><?= e(explode(' ', $aluna['nome'])[0]) ?></h1>
