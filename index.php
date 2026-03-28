@@ -97,10 +97,23 @@ try {
 
     // Turmas do aluno com professores e horários
     $minhas_turmas_aluno = [];
+    $turmas_ids_aluno = [];
     try {
-        $stmtTA = $pdo->prepare("SELECT t.nome, h.dia_semana, h.horario, GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR ', ') as professores_nomes FROM aluno_turmas at_aluno JOIN turmas t ON at_aluno.turma_id = t.id LEFT JOIN horarios_treino h ON t.horario_id = h.id LEFT JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN usuarios u ON tp.professor_id = u.id WHERE at_aluno.aluno_id = ? GROUP BY t.id ORDER BY t.nome");
+        $stmtTA = $pdo->prepare("SELECT t.id, t.nome, h.dia_semana, h.horario, GROUP_CONCAT(u.nome ORDER BY u.nome SEPARATOR ', ') as professores_nomes FROM aluno_turmas at_aluno JOIN turmas t ON at_aluno.turma_id = t.id LEFT JOIN horarios_treino h ON t.horario_id = h.id LEFT JOIN turma_professores tp ON t.id = tp.turma_id LEFT JOIN usuarios u ON tp.professor_id = u.id WHERE at_aluno.aluno_id = ? GROUP BY t.id ORDER BY t.nome");
         $stmtTA->execute([$id]);
         $minhas_turmas_aluno = $stmtTA->fetchAll();
+        $turmas_ids_aluno = array_column($minhas_turmas_aluno, 'id');
+    } catch (Exception $ex) {}
+
+    // Pastas das turmas do aluno
+    $pastas_aluno = [];
+    try {
+        if (!empty($turmas_ids_aluno)) {
+            $inPA = implode(',', array_fill(0, count($turmas_ids_aluno), '?'));
+            $stmtPA = $pdo->prepare("SELECT pt.*, t.nome as turma_nome FROM pastas_turma pt JOIN turmas t ON pt.turma_id = t.id WHERE pt.turma_id IN ($inPA) AND pt.ativo = 1 ORDER BY t.nome");
+            $stmtPA->execute($turmas_ids_aluno);
+            $pastas_aluno = $stmtPA->fetchAll();
+        }
     } catch (Exception $ex) {}
 
     // Próxima Aula
@@ -630,6 +643,27 @@ try {
     </div>
     <?php endif; ?>
 
+    <?php if (!empty($pastas_aluno)): ?>
+    <!-- Pastas das Turmas -->
+    <?php foreach ($pastas_aluno as $pasta): ?>
+    <?php $drive_folder_id = extractDriveFolderId($pasta['drive_link']); ?>
+    <div class="card" style="border-color:#4285F4;background:linear-gradient(180deg,var(--card),rgba(66,133,244,.07))">
+        <h3 class="card-titulo" style="color:#4285F4"><i class="fab fa-google-drive" style="background:none;-webkit-text-fill-color:#4285F4"></i> <?= e($pasta['titulo']) ?></h3>
+        <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:6px"><i class="fas fa-layer-group" style="color:#7b2cbf"></i> <?= e($pasta['turma_nome']) ?></p>
+        <?php if (!empty($pasta['descricao'])): ?>
+        <p style="font-size:13px;color:var(--cinza);margin-bottom:16px"><?= e($pasta['descricao']) ?></p>
+        <?php endif; ?>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <?php if ($drive_folder_id): ?>
+            <button type="button" onclick="abrirGaleriaAluno('<?= htmlspecialchars($drive_folder_id, ENT_QUOTES) ?>','<?= e($pasta['titulo']) ?>')" class="btn-submit" style="display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(90deg,#4285F4,#0F9D58);box-shadow:0 5px 15px rgba(66,133,244,.35);flex:1;padding:14px;font-size:13px">
+                <i class="fas fa-images"></i> Ver Galeria
+            </button>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <?php endif; ?>
+
     <!-- Regras da Academia -->
     <div class="card" style="border-left:4px solid #d62bc5;background:linear-gradient(180deg,var(--card),rgba(214,43,197,.04))">
         <div class="ficha-toggle" id="regras-toggle" onclick="toggleRegras()" role="button" tabindex="0" aria-expanded="false" aria-controls="regras-campos">
@@ -972,6 +1006,40 @@ function compartilharLink() {
     };
 })();
 <?php endif; ?>
+function abrirGaleriaAluno(folderId, titulo) {
+    document.getElementById('galeriaAlunoTitulo').textContent = titulo;
+    var embedUrl = 'https://drive.google.com/embeddedfolderview?id=' + folderId + '#grid';
+    document.getElementById('galeriaAlunoFrame').src = embedUrl;
+    var modal = document.getElementById('modalGaleriaAluno');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function fecharGaleriaAluno() {
+    document.getElementById('modalGaleriaAluno').style.display = 'none';
+    document.getElementById('galeriaAlunoFrame').src = '';
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') fecharGaleriaAluno();
+});
 </script>
+
+<!-- Modal: Galeria da Turma (Aluno) -->
+<div id="modalGaleriaAluno" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;flex-direction:column;align-items:stretch">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:#140d1c;border-bottom:1px solid #2a1b3d;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:12px">
+            <i class="fab fa-google-drive" style="color:#4285F4;font-size:22px"></i>
+            <span id="galeriaAlunoTitulo" style="font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:1px"></span>
+        </div>
+        <button onclick="fecharGaleriaAluno()" style="background:#2a1b3d;border:none;color:#ff4444;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative">
+        <iframe id="galeriaAlunoFrame" src="" style="width:100%;height:100%;border:none;background:#000" allowfullscreen></iframe>
+    </div>
+    <div style="padding:12px 20px;background:#140d1c;border-top:1px solid #2a1b3d;text-align:center;font-size:11px;color:#b5a8c9;flex-shrink:0">
+        <i class="fas fa-info-circle"></i> Clique em um arquivo para visualizar ou baixar
+    </div>
+</div>
+
 </body>
 </html>

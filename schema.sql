@@ -327,5 +327,22 @@ CREATE TABLE IF NOT EXISTS `brindes_aluna` (
     CONSTRAINT `fk_ba_instrutor` FOREIGN KEY (`instrutor_id`)REFERENCES `usuarios` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================
+-- TABELA: pastas_turma (Pastas do Google Drive por turma)
+-- Cada turma pode ter uma pasta Drive configurada pelo admin
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `pastas_turma` (
+    `id`          INT(11) NOT NULL AUTO_INCREMENT,
+    `turma_id`    INT(11) NOT NULL,
+    `titulo`      VARCHAR(150) NOT NULL DEFAULT 'Pasta da Turma',
+    `descricao`   TEXT DEFAULT NULL,
+    `drive_link`  VARCHAR(500) NOT NULL,
+    `ativo`       TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `fk_pt_turma` (`turma_id`),
+    CONSTRAINT `fk_pt_turma` FOREIGN KEY (`turma_id`) REFERENCES `turmas` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Migração: brindes e brindes_aluna (execute em bancos existentes)
 -- (tables created above with IF NOT EXISTS — safe to re-run)

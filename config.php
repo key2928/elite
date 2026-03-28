@@ -19,4 +19,11 @@ try {
 function e($str) {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 }
+
+function extractDriveFolderId(string $url): string {
+    if (preg_match('/\/folders\/([a-zA-Z0-9_-]+)/', $url, $m)) {
+        return $m[1];
+    }
+    return '';
+}
 ?>
