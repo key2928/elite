@@ -337,16 +337,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif (isset($_FILES['arquivo']) && $_FILES['arquivo']['error'] === UPLOAD_ERR_OK) {
             $allowed_exts = ['jpg','jpeg','png','gif','webp','mp4','mov','avi','pdf','doc','docx','xls','xlsx','ppt','pptx'];
-            $orig_name    = basename($_FILES['arquivo']['name']);
-            $ext          = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
-            if (!in_array($ext, $allowed_exts)) {
+            $allowed_mimes = [
+                'image/jpeg','image/png','image/gif','image/webp',
+                'video/mp4','video/quicktime','video/x-msvideo',
+                'application/pdf',
+                'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ];
+            $orig_name = basename($_FILES['arquivo']['name']);
+            $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+            $finfo     = new finfo(FILEINFO_MIME_TYPE);
+            $mime_type = $finfo->file($_FILES['arquivo']['tmp_name']);
+            if (!in_array($ext, $allowed_exts) || !in_array($mime_type, $allowed_mimes)) {
                 $msg_erro = 'Tipo de arquivo não permitido.';
             } elseif ($_FILES['arquivo']['size'] > 50 * 1024 * 1024) {
                 $msg_erro = 'Arquivo muito grande (máximo 50 MB).';
             } else {
                 $upload_dir = __DIR__ . '/uploads/materiais/';
                 if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-                $new_name = uniqid() . '_' . $orig_name;
+                $new_name = uniqid() . '.' . $ext;
                 if (move_uploaded_file($_FILES['arquivo']['tmp_name'], $upload_dir . $new_name)) {
                     $arquivo_path = 'uploads/materiais/' . $new_name;
                     $tamanho_kb   = (int)ceil($_FILES['arquivo']['size'] / 1024);
@@ -399,8 +409,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtMat->execute([$id_mat]);
                 $mat_row = $stmtMat->fetch();
                 if ($mat_row && $mat_row['arquivo_path']) {
-                    $file_path = __DIR__ . '/' . $mat_row['arquivo_path'];
-                    if (file_exists($file_path)) unlink($file_path);
+                    $rel_path  = $mat_row['arquivo_path'];
+                    $safe_base = realpath(__DIR__ . '/uploads/materiais');
+                    $file_path = realpath(__DIR__ . '/' . $rel_path);
+                    if ($file_path && $safe_base && str_starts_with($file_path, $safe_base . DIRECTORY_SEPARATOR) && file_exists($file_path)) {
+                        unlink($file_path);
+                    }
                 }
                 $pdo->prepare("DELETE FROM materiais_marketing WHERE id=?")->execute([$id_mat]);
                 $msg_sucesso = 'Material removido.';
