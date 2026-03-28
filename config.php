@@ -26,4 +26,10 @@ function extractDriveFolderId(string $url): string {
     }
     return '';
 }
+
+function extractDriveFileId(string $url): string {
+    if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $m)) return $m[1];
+    if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $url, $m)) return $m[1];
+    return '';
+}
 ?>

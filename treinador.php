@@ -54,6 +54,15 @@ $prof_id = (int)$_SESSION['usuario_id'];
 $recibo_dados = null;
 $forma_labels = ['pix' => 'PIX', 'credito' => 'Cartão de Crédito', 'debito' => 'Cartão de Débito', 'dinheiro' => 'Dinheiro'];
 
+// Carregar permissões granulares do usuário atual
+$minha_permissoes = [];
+try {
+    $stmtP = $pdo->prepare("SELECT permissao FROM usuario_permissoes WHERE usuario_id = ?");
+    $stmtP->execute([$prof_id]);
+    $minha_permissoes = $stmtP->fetchAll(PDO::FETCH_COLUMN);
+} catch (Exception $e) {}
+function hasPerm(array $perms, string $p): bool { return in_array($p, $perms, true); }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
@@ -136,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 4. Pagamento
-    if ($acao === 'pagamento') {
+    if ($acao === 'pagamento' && hasPerm($minha_permissoes, 'pagamentos_registrar')) {
         $plano_id = (int)($_POST['plano_id'] ?? 0);
         $stmt = $pdo->prepare("SELECT duracao_meses, nome_plano FROM planos_tabela WHERE id = ?");
         $stmt->execute([$plano_id]);
@@ -165,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 5b. Adicionar Brinde
-    if ($acao === 'add_brinde') {
+    if ($acao === 'add_brinde' && hasPerm($minha_permissoes, 'brindes_ver')) {
         $nome = trim($_POST['nome_brinde'] ?? '');
         if ($nome !== '') {
             $pdo->prepare("INSERT INTO brindes (nome, descricao) VALUES (?,?)")
@@ -175,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 5c. Registar Brinde Manual (treinador atribui manualmente a aluna)
-    if ($acao === 'brinde_manual') {
+    if ($acao === 'brinde_manual' && hasPerm($minha_permissoes, 'brindes_ver')) {
         $aluna_id = (int)($_POST['aluna_id'] ?? 0);
         $mes      = $_POST['mes_referencia'] ?? date('Y-m');
         $texto    = trim($_POST['brinde_manual'] ?? '');
@@ -189,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 5d. Entregar Brinde
-    if ($acao === 'entregar_brinde') {
+    if ($acao === 'entregar_brinde' && hasPerm($minha_permissoes, 'brindes_entregar')) {
         $ba_id = (int)($_POST['ba_id'] ?? 0);
         $pdo->prepare("UPDATE brindes_aluna SET entregue=1, data_entrega=NOW() WHERE id=?")
             ->execute([$ba_id]);
@@ -197,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 5e. Girar Roleta (aluna girou, registar brinde)
-    if ($acao === 'girar_roleta') {
+    if ($acao === 'girar_roleta' && hasPerm($minha_permissoes, 'brindes_ver')) {
         $ba_id    = (int)($_POST['ba_id'] ?? 0);
         $brinde_id = (int)($_POST['brinde_id'] ?? 0);
         if ($ba_id) {
@@ -208,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 5. Cadastrar Aluno
-    if ($acao === 'nova_aluna') {
+    if ($acao === 'nova_aluna' && hasPerm($minha_permissoes, 'alunos_editar')) {
         $senha_hash = password_hash($_POST['senha'] ?? '', PASSWORD_DEFAULT);
         try {
             $pdo->prepare("INSERT INTO usuarios (nome, email, telefone, senha, tipo, data_nascimento, tipo_sanguineo, peso, altura, doencas_cronicas, medicamentos_uso, historico_lesoes, emergencia_nome, emergencia_telefone, objetivo_treino, nivel_experiencia, restricoes_medicas) VALUES (?,?,?,?,'aluno',?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -233,14 +242,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 6. Editar Aluno
-    if ($acao === 'editar_aluno') {
+    if ($acao === 'editar_aluno' && hasPerm($minha_permissoes, 'alunos_editar')) {
         $pdo->prepare("UPDATE usuarios SET nome=?, email=?, telefone=? WHERE id=?")
             ->execute([$_POST['nome'] ?? '', $_POST['email'] ?? '', $_POST['telefone'] ?? '', (int)($_POST['aluno_id'] ?? 0)]);
         $msg_sucesso = 'Dados atualizados com sucesso!';
     }
 
     // 7. Editar Ficha Médica
-    if ($acao === 'editar_ficha_aluno') {
+    if ($acao === 'editar_ficha_aluno' && hasPerm($minha_permissoes, 'alunos_editar')) {
         $pdo->prepare("UPDATE usuarios SET data_nascimento=?, tipo_sanguineo=?, peso=?, altura=?, doencas_cronicas=?, medicamentos_uso=?, historico_lesoes=?, emergencia_nome=?, emergencia_telefone=?, objetivo_treino=?, nivel_experiencia=?, restricoes_medicas=? WHERE id=?")
             ->execute([
                 ($_POST['data_nascimento'] ?: null), ($_POST['tipo_sanguineo'] ?: null),
@@ -255,9 +264,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 8. Excluir Aluno
-    if ($acao === 'excluir_aluno') {
+    if ($acao === 'excluir_aluno' && hasPerm($minha_permissoes, 'alunos_editar')) {
         $pdo->prepare("DELETE FROM usuarios WHERE id = ?")->execute([(int)($_POST['excluir_id'] ?? 0)]);
         $msg_sucesso = 'Cadastro removido do sistema.';
+    }
+
+    // 9. Adicionar Material de Marketing (galeria_upload)
+    if ($acao === 'add_material' && hasPerm($minha_permissoes, 'galeria_upload')) {
+        $titulo    = trim($_POST['titulo'] ?? '');
+        $descricao = trim($_POST['descricao'] ?? '');
+        $categoria = trim($_POST['categoria'] ?? 'Geral');
+        $tipo      = $_POST['tipo_arquivo'] ?? 'outro';
+        $tipos_validos_mat = ['imagem','video','documento','link','outro'];
+        if (!in_array($tipo, $tipos_validos_mat)) $tipo = 'outro';
+
+        $arquivo_path  = null;
+        $drive_link    = null;
+        $drive_file_id = null;
+        $tamanho_kb    = null;
+
+        if ($tipo === 'link') {
+            $drive_link = trim($_POST['drive_link'] ?? '');
+            if ($drive_link !== '') {
+                $drive_file_id = extractDriveFileId($drive_link) ?: null;
+            }
+        } elseif (isset($_FILES['arquivo']) && $_FILES['arquivo']['error'] === UPLOAD_ERR_OK) {
+            $allowed_exts = ['jpg','jpeg','png','gif','webp','mp4','mov','avi','pdf','doc','docx','xls','xlsx','ppt','pptx'];
+            $allowed_mimes = [
+                'image/jpeg','image/png','image/gif','image/webp',
+                'video/mp4','video/quicktime','video/x-msvideo',
+                'application/pdf',
+                'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ];
+            $orig_name = basename($_FILES['arquivo']['name']);
+            $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+            $finfo     = class_exists('finfo') ? new finfo(FILEINFO_MIME_TYPE) : null;
+            $mime_type = $finfo ? $finfo->file($_FILES['arquivo']['tmp_name']) : mime_content_type($_FILES['arquivo']['tmp_name']);
+            if (!in_array($ext, $allowed_exts) || !in_array($mime_type, $allowed_mimes)) {
+                $msg_erro = 'Tipo de arquivo não permitido.';
+            } elseif ($_FILES['arquivo']['size'] > 50 * 1024 * 1024) {
+                $msg_erro = 'Arquivo muito grande (máximo 50 MB).';
+            } else {
+                $upload_dir = __DIR__ . '/uploads/materiais/';
+                if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+                $new_name = uniqid() . '.' . $ext;
+                if (move_uploaded_file($_FILES['arquivo']['tmp_name'], $upload_dir . $new_name)) {
+                    $arquivo_path = 'uploads/materiais/' . $new_name;
+                    $tamanho_kb   = (int)ceil($_FILES['arquivo']['size'] / 1024);
+                    if ($tipo === 'outro') {
+                        $img_exts = ['jpg','jpeg','png','gif','webp'];
+                        $vid_exts = ['mp4','mov','avi'];
+                        $doc_exts = ['pdf','doc','docx','xls','xlsx','ppt','pptx'];
+                        if (in_array($ext, $img_exts)) $tipo = 'imagem';
+                        elseif (in_array($ext, $vid_exts)) $tipo = 'video';
+                        elseif (in_array($ext, $doc_exts)) $tipo = 'documento';
+                    }
+                } else {
+                    $msg_erro = 'Erro ao fazer upload do arquivo.';
+                }
+            }
+        }
+
+        if ($msg_erro === '' && $titulo !== '') {
+            try {
+                $pdo->prepare("INSERT INTO materiais_marketing (titulo, descricao, categoria, tipo_arquivo, arquivo_path, drive_link, drive_file_id, tamanho_kb, criado_por) VALUES (?,?,?,?,?,?,?,?,?)")
+                    ->execute([$titulo, $descricao ?: null, $categoria, $tipo, $arquivo_path, $drive_link ?: null, $drive_file_id, $tamanho_kb, $prof_id]);
+                $msg_sucesso = 'Material adicionado à galeria!';
+            } catch (PDOException $e) {
+                $msg_erro = 'Erro ao salvar material.';
+            }
+        } elseif ($msg_erro === '') {
+            $msg_erro = 'Informe o título do material.';
+        }
     }
 }
 
@@ -337,6 +417,14 @@ try {
         $presencas_hoje = array_map('intval', $stmtPH->fetchAll(PDO::FETCH_COLUMN));
     }
 } catch (Exception $e) {}
+
+// Materiais de Marketing (visível apenas com permissão galeria_ver)
+$materiais_mkt = [];
+if (hasPerm($minha_permissoes, 'galeria_ver')) {
+    try {
+        $materiais_mkt = $pdo->query("SELECT * FROM materiais_marketing WHERE ativo=1 ORDER BY created_at DESC")->fetchAll();
+    } catch (Exception $e) {}
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -501,6 +589,7 @@ try {
     </div>
 
     <!-- Gestão de Alunos -->
+    <?php if (hasPerm($minha_permissoes, 'alunos_ver')): ?>
     <div class="card">
         <h3 class="card-titulo"><i class="fas fa-users"></i> Gestão de Alunos</h3>
 
@@ -512,12 +601,14 @@ try {
                         <div style="display:flex;gap:5px">
                             <button onclick="toggleDiv('ficha-<?= (int)$a['id'] ?>')" class="btn-acao" title="Ficha Médica" style="color:#d62bc5"><i class="fas fa-notes-medical"></i></button>
                             <button onclick="toggleDiv('hist-<?= (int)$a['id'] ?>')" class="btn-acao" title="Histórico" style="color:#f1c40f"><i class="fas fa-history"></i></button>
+                            <?php if (hasPerm($minha_permissoes, 'alunos_editar')): ?>
                             <button onclick="abrirEdicao(<?= (int)$a['id'] ?>, <?= e(json_encode($a['nome'])) ?>, <?= e(json_encode($a['email'])) ?>, <?= e(json_encode($a['telefone'] ?? '')) ?>)" class="btn-acao btn-editar" title="Editar"><i class="fas fa-edit"></i></button>
                             <form method="POST" style="display:inline" onsubmit="return confirm('Excluir este registo?')">
                                 <input type="hidden" name="acao" value="excluir_aluno">
                                 <input type="hidden" name="excluir_id" value="<?= (int)$a['id'] ?>">
                                 <button type="submit" class="btn-acao btn-excluir" title="Excluir"><i class="fas fa-trash"></i></button>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="aluna-info"><i class="fas fa-envelope" style="color:#d62bc5;margin-right:5px"></i> <?= e($a['email']) ?></div>
@@ -537,6 +628,7 @@ try {
                     <!-- Ficha Médica Muay Thai (colapsável) -->
                     <div id="ficha-<?= (int)$a['id'] ?>" class="section-toggle">
                         <div class="section-title"><i class="fas fa-notes-medical"></i> Ficha Médica Muay Thai</div>
+                        <?php if (hasPerm($minha_permissoes, 'alunos_editar')): ?>
                         <form method="POST">
                             <input type="hidden" name="acao" value="editar_ficha_aluno">
                             <input type="hidden" name="aluno_id" value="<?= (int)$a['id'] ?>">
@@ -597,6 +689,7 @@ try {
                                 <button type="button" onclick="toggleDiv('ficha-<?= (int)$a['id'] ?>')" class="btn-submit" style="background:#333;box-shadow:none;font-size:13px;padding:12px">Fechar</button>
                             </div>
                         </form>
+                        <?php endif; // alunos_editar ?>
                     </div>
 
                     <!-- Histórico de Renovações (colapsável) -->
@@ -632,6 +725,7 @@ try {
             <?php endif; ?>
         </div>
 
+        <?php if (hasPerm($minha_permissoes, 'alunos_editar')): ?>
         <div id="modalEdit">
             <h4 style="margin:0 0 10px;color:#f1c40f">Editar Aluno</h4>
             <form method="POST">
@@ -724,7 +818,9 @@ try {
 
             <button type="submit" class="btn-submit"><i class="fas fa-plus"></i> Cadastrar</button>
         </form>
+        <?php endif; // alunos_editar ?>
     </div>
+    <?php endif; // alunos_ver ?>
 
     <!-- Medalhas -->
     <div class="card">
@@ -746,6 +842,7 @@ try {
     </div>
 
     <!-- Pagamento -->
+    <?php if (hasPerm($minha_permissoes, 'pagamentos_registrar')): ?>
     <div class="card">
         <h3 class="card-titulo"><i class="fas fa-wallet"></i> Receber Pagamento</h3>
         <form method="POST">
@@ -769,8 +866,10 @@ try {
             <button type="submit" class="btn-submit" style="background:#2ecc71;box-shadow:0 5px 15px rgba(46,204,113,.3);color:#000"><i class="fas fa-file-invoice-dollar"></i> Registar Recibo</button>
         </form>
     </div>
+    <?php endif; // pagamentos_registrar ?>
 
     <!-- Brindes -->
+    <?php if (hasPerm($minha_permissoes, 'brindes_ver')): ?>
     <div class="card" style="border-color:#f1c40f">
         <h3 class="card-titulo" style="color:#f1c40f"><i class="fas fa-gift" style="background:none;-webkit-text-fill-color:#f1c40f"></i> Brindes & Recompensas</h3>
 
@@ -822,7 +921,7 @@ try {
                     <i class="fas fa-gift" style="color:#f1c40f;margin-right:4px"></i> <?= e($txt) ?>
                     &nbsp;|&nbsp;<i class="fas fa-calendar-alt" style="color:#7b2cbf;margin-right:4px"></i> <?= e($bp['mes_referencia']) ?>
                 </div>
-                <?php if (!$bp['entregue']): ?>
+                <?php if (!$bp['entregue'] && hasPerm($minha_permissoes, 'brindes_entregar')): ?>
                 <form method="POST" style="margin-top:8px">
                     <input type="hidden" name="acao" value="entregar_brinde">
                     <input type="hidden" name="ba_id" value="<?= (int)$bp['id'] ?>">
@@ -833,6 +932,104 @@ try {
         <?php endforeach; ?>
         <?php endif; ?>
     </div>
+    <?php endif; // brindes_ver ?>
+
+    <!-- Galeria de Marketing -->
+    <?php if (hasPerm($minha_permissoes, 'galeria_ver')): ?>
+    <div class="card" style="border-color:#d62bc5">
+        <h3 class="card-titulo"><i class="fas fa-images"></i> Galeria de Marketing</h3>
+
+        <?php if (hasPerm($minha_permissoes, 'galeria_upload')): ?>
+        <details style="margin-bottom:15px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#d62bc5;list-style:none;padding:10px;background:rgba(214,43,197,.07);border-radius:10px"><i class="fas fa-cloud-upload-alt"></i> Adicionar material</summary>
+            <form method="POST" enctype="multipart/form-data" style="margin-top:12px">
+                <input type="hidden" name="acao" value="add_material">
+                <input type="text" name="titulo" placeholder="Título do material" required>
+                <textarea name="descricao" rows="2" placeholder="Descrição (opcional)"></textarea>
+                <select name="categoria">
+                    <option value="Geral">Geral</option>
+                    <option value="Treino">Treino</option>
+                    <option value="Nutrição">Nutrição</option>
+                    <option value="Evento">Evento</option>
+                    <option value="Institucional">Institucional</option>
+                    <option value="Promocional">Promocional</option>
+                </select>
+                <select name="tipo_arquivo" id="mktTipoSelect" onchange="toggleMktUpload()">
+                    <option value="imagem">🖼️ Imagem</option>
+                    <option value="video">🎥 Vídeo</option>
+                    <option value="documento">📄 Documento</option>
+                    <option value="link">🔗 Link Google Drive</option>
+                    <option value="outro">📁 Outro</option>
+                </select>
+                <div id="mktFileDiv">
+                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-upload"></i> Arquivo (máx. 50 MB)</label>
+                    <input type="file" name="arquivo" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="padding:10px">
+                </div>
+                <div id="mktLinkDiv" style="display:none">
+                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fab fa-google-drive"></i> Link do Google Drive</label>
+                    <input type="url" name="drive_link" placeholder="https://drive.google.com/file/d/...">
+                </div>
+                <button type="submit" class="btn-submit" style="font-size:13px;padding:12px"><i class="fas fa-plus"></i> Adicionar</button>
+            </form>
+        </details>
+        <?php endif; ?>
+
+        <?php if (empty($materiais_mkt)): ?>
+            <p style="font-size:12px;color:var(--cinza);text-align:center;padding:20px 0"><i class="fas fa-images" style="font-size:30px;display:block;margin-bottom:8px;opacity:.3"></i>Nenhum material na galeria.</p>
+        <?php else: ?>
+        <?php
+            $mkt_icons  = ['imagem'=>'fa-image','video'=>'fa-film','documento'=>'fa-file-alt','link'=>'fa-link','outro'=>'fa-file'];
+            $mkt_colors = ['imagem'=>'#d62bc5','video'=>'#3498db','documento'=>'#f39c12','link'=>'#4285F4','outro'=>'#7b2cbf'];
+        ?>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">
+            <?php foreach ($materiais_mkt as $mat):
+                $mt  = $mat['tipo_arquivo'];
+                $mc  = $mkt_colors[$mt] ?? '#d62bc5';
+                $mi  = $mkt_icons[$mt]  ?? 'fa-file';
+                $is_img = ($mt === 'imagem' && !empty($mat['arquivo_path']));
+                if (!empty($mat['arquivo_path'])) {
+                    $vurl  = e($mat['arquivo_path']);
+                    $durl  = e($mat['arquivo_path']);
+                    $dattr = 'download';
+                } elseif (!empty($mat['drive_file_id'])) {
+                    $vurl  = 'https://drive.google.com/file/d/' . e($mat['drive_file_id']) . '/view';
+                    $durl  = 'https://drive.google.com/uc?export=download&id=' . e($mat['drive_file_id']);
+                    $dattr = 'target="_blank"';
+                } elseif (!empty($mat['drive_link'])) {
+                    $vurl  = e($mat['drive_link']);
+                    $durl  = e($mat['drive_link']);
+                    $dattr = 'target="_blank"';
+                } else {
+                    $vurl  = '';
+                    $durl  = '';
+                    $dattr = '';
+                }
+            ?>
+            <div style="background:#050308;border:1px solid var(--borda);border-radius:12px;overflow:hidden">
+                <div style="height:80px;display:flex;align-items:center;justify-content:center;background:<?= $mc ?>20;border-bottom:1px solid var(--borda)">
+                    <?php if ($is_img): ?>
+                        <img src="<?= e($mat['arquivo_path']) ?>" alt="<?= e($mat['titulo']) ?>" style="width:100%;height:100%;object-fit:cover">
+                    <?php else: ?>
+                        <i class="fas <?= $mi ?>" style="font-size:28px;color:<?= $mc ?>"></i>
+                    <?php endif; ?>
+                </div>
+                <div style="padding:10px">
+                    <div style="font-weight:700;font-size:12px;margin-bottom:6px;line-height:1.3"><?= e(mb_strimwidth($mat['titulo'], 0, 40, '...')) ?></div>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap">
+                        <?php if ($vurl !== ''): ?>
+                        <a href="<?= $vurl ?>" target="_blank" style="background:rgba(52,152,219,.15);color:#3498db;width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;text-decoration:none" title="Visualizar"><i class="fas fa-eye"></i></a>
+                        <?php endif; ?>
+                        <?php if ($durl !== '' && hasPerm($minha_permissoes, 'galeria_download')): ?>
+                        <a href="<?= $durl ?>" <?= $dattr ?> style="background:rgba(46,204,113,.15);color:#2ecc71;width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;text-decoration:none" title="Download"><i class="fas fa-download"></i></a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; // galeria_ver ?>
 
 </div>
 
@@ -979,6 +1176,15 @@ function selecionarTodos(marcar) {
             row.querySelector('input[type="checkbox"]').checked = marcar;
         }
     });
+}
+function toggleMktUpload() {
+    var t = document.getElementById('mktTipoSelect');
+    if (!t) return;
+    var v = t.value;
+    var fd = document.getElementById('mktFileDiv');
+    var ld = document.getElementById('mktLinkDiv');
+    if (fd) fd.style.display = v === 'link' ? 'none' : 'block';
+    if (ld) ld.style.display = v === 'link' ? 'block' : 'none';
 }
 
 if ('serviceWorker' in navigator) {
