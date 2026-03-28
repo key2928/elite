@@ -502,6 +502,70 @@ try {
         $usuario_permissoes_map[(int)$r['usuario_id']][] = $r['permissao'];
     }
 } catch (Exception $e) {}
+
+// ── Agentes IA — dados inteligentes ─────────────────────────
+$ia_inadimplentes = [];
+$ia_vencimentos   = [];
+$ia_ausencias     = [];
+$ia_leads_novos   = 0;
+$ia_brindes_pend  = 0;
+$ia_total_alunos  = 0;
+$ia_receita_mes   = (float)$total_caixa;
+try {
+    $hoje_ia = date('Y-m-d');
+    $daqui7  = date('Y-m-d', strtotime('+7 days'));
+    $ha30    = date('Y-m-d', strtotime('-30 days'));
+
+    // Total de alunos ativos
+    $ia_total_alunos = (int)$pdo->query("SELECT COUNT(*) FROM usuarios WHERE tipo = 'aluno' AND ativo = 1")->fetchColumn();
+
+    // Alunos inadimplentes: sem pagamento ativo ou com pagamento vencido
+    $stmt_inad = $pdo->prepare(
+        "SELECT u.id, u.nome, u.telefone, MAX(p.data_vencimento) AS ultimo_venc
+         FROM usuarios u
+         LEFT JOIN pagamentos p ON u.id = p.aluna_id
+         WHERE u.tipo = 'aluno' AND u.ativo = 1
+         GROUP BY u.id
+         HAVING MAX(p.data_vencimento) < ? OR MAX(p.data_vencimento) IS NULL
+         ORDER BY ultimo_venc ASC
+         LIMIT 20"
+    );
+    $stmt_inad->execute([$hoje_ia]);
+    $ia_inadimplentes = $stmt_inad->fetchAll();
+
+    // Vencimentos nos próximos 7 dias
+    $stmt_venc = $pdo->prepare(
+        "SELECT u.nome, u.telefone, MAX(p.data_vencimento) AS vencimento
+         FROM pagamentos p
+         JOIN usuarios u ON u.id = p.aluna_id
+         WHERE u.tipo = 'aluno'
+         GROUP BY u.id
+         HAVING MAX(p.data_vencimento) BETWEEN ? AND ?
+         ORDER BY vencimento ASC"
+    );
+    $stmt_venc->execute([$hoje_ia, $daqui7]);
+    $ia_vencimentos = $stmt_venc->fetchAll();
+
+    // Alunos sem presença nos últimos 30 dias
+    $stmt_aus = $pdo->prepare(
+        "SELECT u.id, u.nome, u.telefone
+         FROM usuarios u
+         WHERE u.tipo = 'aluno' AND u.ativo = 1
+           AND u.id NOT IN (
+               SELECT DISTINCT aluno_id FROM presencas WHERE data_presenca >= ?
+           )
+         ORDER BY u.nome
+         LIMIT 15"
+    );
+    $stmt_aus->execute([$ha30]);
+    $ia_ausencias = $stmt_aus->fetchAll();
+
+    // Leads novos não contatados
+    $ia_leads_novos = (int)$pdo->query("SELECT COUNT(*) FROM leads_indicacoes WHERE status = 'novo'")->fetchColumn();
+
+    // Brindes aguardando entrega
+    $ia_brindes_pend = (int)$pdo->query("SELECT COUNT(*) FROM brindes_aluna WHERE roleta_girada = 1 AND entregue = 0")->fetchColumn();
+} catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -607,6 +671,7 @@ try {
         <button class="tab-btn" onclick="openTab('brindes',this)"><i class="fas fa-gift"></i> Brindes</button>
         <button class="tab-btn" onclick="openTab('galeria',this)"><i class="fas fa-images"></i> Galeria</button>
         <button class="tab-btn" onclick="openTab('pastas',this)"><i class="fab fa-google-drive"></i> Pastas</button>
+        <button class="tab-btn" onclick="openTab('agentes',this)"><i class="fas fa-robot"></i> Agentes IA</button>
     </div>
 
     <!-- CAIXA -->
@@ -1435,6 +1500,147 @@ try {
             </div>
             <?php endif; ?>
         </div>
+    </div>
+
+    <!-- AGENTES IA -->
+    <div id="agentes" class="tab-content">
+
+        <!-- Resumo Inteligente -->
+        <div class="card" style="border-color:#7b2cbf;background:linear-gradient(135deg,var(--card),rgba(123,44,191,.08))">
+            <h3 class="card-titulo"><i class="fas fa-robot" style="color:#d62bc5"></i> Resumo Inteligente</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
+                <div style="background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#2ecc71"><?= $ia_total_alunos ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Alunos Ativos</div>
+                </div>
+                <div style="background:rgba(214,43,197,.08);border:1px solid rgba(214,43,197,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#d62bc5">R$ <?= number_format($ia_receita_mes, 0, ',', '.') ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Receita do Mês</div>
+                </div>
+                <div style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#ff4444"><?= count($ia_inadimplentes) ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Inadimplentes</div>
+                </div>
+                <div style="background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#f1c40f"><?= count($ia_vencimentos) ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Vencem em 7 dias</div>
+                </div>
+                <div style="background:rgba(52,152,219,.08);border:1px solid rgba(52,152,219,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#3498db"><?= $ia_leads_novos ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Leads Novos</div>
+                </div>
+                <div style="background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.3);border-radius:14px;padding:14px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:#FF8C00"><?= $ia_brindes_pend ?></div>
+                    <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;margin-top:4px">Brindes p/ Entregar</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas e Recomendações -->
+        <?php
+        $ia_acoes = [];
+        if (count($ia_inadimplentes) > 0) {
+            $ia_acoes[] = ['cor'=>'#ff4444','icone'=>'fa-exclamation-circle','titulo'=>count($ia_inadimplentes) . ' aluno(s) com pagamento em atraso','acao'=>'Acesse a aba <strong>Alunos</strong> e entre em contato para regularizar.'];
+        }
+        if (count($ia_vencimentos) > 0) {
+            $ia_acoes[] = ['cor'=>'#f1c40f','icone'=>'fa-clock','titulo'=>count($ia_vencimentos) . ' aluno(s) com plano vencendo em até 7 dias','acao'=>'Envie um lembrete pelo WhatsApp para evitar inadimplência.'];
+        }
+        if (count($ia_ausencias) > 0) {
+            $ia_acoes[] = ['cor'=>'#FF8C00','icone'=>'fa-user-clock','titulo'=>count($ia_ausencias) . ' aluno(s) sem presença nos últimos 30 dias','acao'=>'Entre em contato para verificar motivação e retenção.'];
+        }
+        if ($ia_leads_novos > 0) {
+            $ia_acoes[] = ['cor'=>'#3498db','icone'=>'fa-user-plus','titulo'=>$ia_leads_novos . ' lead(s) de indicação aguardando contato','acao'=>'Acesse a aba <strong>Indicações VIP</strong> para atualizar o status.'];
+        }
+        if ($ia_brindes_pend > 0) {
+            $ia_acoes[] = ['cor'=>'#d62bc5','icone'=>'fa-gift','titulo'=>$ia_brindes_pend . ' brinde(s) girado(s) aguardando entrega','acao'=>'Acesse a aba <strong>Brindes</strong> para registrar as entregas.'];
+        }
+        if (empty($ia_acoes)):
+        ?>
+        <div class="card" style="border-color:#2ecc71;text-align:center;padding:32px">
+            <div style="font-size:48px;margin-bottom:12px">✅</div>
+            <div style="font-weight:800;font-size:16px;color:#2ecc71">Tudo em ordem!</div>
+            <div style="font-size:13px;color:var(--cinza);margin-top:8px">Nenhum alerta identificado pelos agentes inteligentes.</div>
+        </div>
+        <?php else: ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-bell" style="color:#f1c40f"></i> Alertas dos Agentes</h3>
+            <?php foreach ($ia_acoes as $ia_a): ?>
+            <div style="background:<?= $ia_a['cor'] ?>12;border:1px solid <?= $ia_a['cor'] ?>40;border-left:4px solid <?= $ia_a['cor'] ?>;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <i class="fas <?= $ia_a['icone'] ?>" style="color:<?= $ia_a['cor'] ?>;font-size:16px;flex-shrink:0"></i>
+                    <span style="font-weight:800;font-size:13px;color:<?= $ia_a['cor'] ?>"><?= $ia_a['titulo'] ?></span>
+                </div>
+                <div style="font-size:12px;color:var(--cinza);padding-left:26px"><?= $ia_a['acao'] ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Alunos Inadimplentes -->
+        <?php if (!empty($ia_inadimplentes)): ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-user-times" style="color:#ff4444"></i> Alunos Inadimplentes</h3>
+            <?php foreach ($ia_inadimplentes as $ia_al): ?>
+            <div class="item-lista">
+                <div class="item-topo">
+                    <span class="item-nome"><?= e($ia_al['nome']) ?></span>
+                    <?php if ($ia_al['ultimo_venc']): ?>
+                        <span class="badge badge-atrasado">Venceu <?= date('d/m/Y', strtotime($ia_al['ultimo_venc'])) ?></span>
+                    <?php else: ?>
+                        <span class="badge badge-atrasado">Sem pagamento</span>
+                    <?php endif; ?>
+                </div>
+                <?php if ($ia_al['telefone']): ?>
+                <div style="margin-top:6px">
+                    <a href="https://wa.me/55<?= preg_replace('/\D/','',$ia_al['telefone']) ?>?text=<?= rawurlencode('Olá ' . $ia_al['nome'] . '! Gostaríamos de lembrar que a sua mensalidade na Elite Thai está em aberto. Entre em contato para regularizar e continuar treinando! 🥊') ?>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.12);color:#25D366;border:1px solid rgba(37,211,102,.4);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Vencimentos Próximos -->
+        <?php if (!empty($ia_vencimentos)): ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-calendar-times" style="color:#f1c40f"></i> Vencimentos nos Próximos 7 Dias</h3>
+            <?php foreach ($ia_vencimentos as $ia_v): ?>
+            <div class="item-lista">
+                <div class="item-topo">
+                    <span class="item-nome"><?= e($ia_v['nome']) ?></span>
+                    <span class="badge" style="background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f">Vence <?= date('d/m/Y', strtotime($ia_v['vencimento'])) ?></span>
+                </div>
+                <?php if ($ia_v['telefone']): ?>
+                <div style="margin-top:6px">
+                    <a href="https://wa.me/55<?= preg_replace('/\D/','',$ia_v['telefone']) ?>?text=<?= rawurlencode('Olá ' . $ia_v['nome'] . '! A sua mensalidade na Elite Thai vence em breve. Renove para continuar treinando sem interrupções! 💪') ?>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.12);color:#25D366;border:1px solid rgba(37,211,102,.4);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none"><i class="fab fa-whatsapp"></i> Lembrete</a>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Alunos com Ausências -->
+        <?php if (!empty($ia_ausencias)): ?>
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-user-clock" style="color:#FF8C00"></i> Alunos Ausentes (últimos 30 dias)</h3>
+            <p style="font-size:12px;color:var(--cinza);margin-top:-10px;margin-bottom:16px">Alunos sem registro de presença nos últimos 30 dias. Entre em contato para verificar e reter.</p>
+            <?php foreach ($ia_ausencias as $ia_aus): ?>
+            <div class="item-lista">
+                <div class="item-topo">
+                    <span class="item-nome"><?= e($ia_aus['nome']) ?></span>
+                    <span class="badge" style="background:rgba(255,140,0,.15);color:#FF8C00;border:1px solid #FF8C00">Sem presença</span>
+                </div>
+                <?php if ($ia_aus['telefone']): ?>
+                <div style="margin-top:6px">
+                    <a href="https://wa.me/55<?= preg_replace('/\D/','',$ia_aus['telefone']) ?>?text=<?= rawurlencode('Olá ' . $ia_aus['nome'] . '! Sentimos a sua falta nos treinos da Elite Thai. Que tal voltar? Estamos te esperando! 🥊💜') ?>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.12);color:#25D366;border:1px solid rgba(37,211,102,.4);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none"><i class="fab fa-whatsapp"></i> Reconquistar</a>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
     </div>
 
 </div>

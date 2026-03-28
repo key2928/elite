@@ -294,6 +294,29 @@ try {
             .app{max-width:860px}
             #pwa-banner{left:50%;right:auto;transform:translateX(-50%);width:500px;border-radius:16px 16px 0 0}
         }
+        /* Chatbot Widget */
+        #chat-fab{position:fixed;bottom:24px;right:20px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#d62bc5,#7b2cbf);color:#fff;border:none;font-size:22px;cursor:pointer;z-index:900;box-shadow:0 6px 24px rgba(214,43,197,.5);display:flex;align-items:center;justify-content:center;transition:.3s}
+        #chat-fab:hover{transform:scale(1.1)}
+        #chat-panel{display:none;position:fixed;bottom:90px;right:16px;width:340px;max-width:calc(100vw - 32px);height:460px;background:#140d1c;border-radius:20px;border:1px solid #2a1b3d;z-index:901;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.7);overflow:hidden}
+        #chat-panel.aberto{display:flex}
+        #chat-header{background:linear-gradient(90deg,#d62bc5,#7b2cbf);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+        #chat-header i{font-size:20px}
+        #chat-header .chat-nome{font-weight:800;font-size:14px;flex:1}
+        #chat-header .chat-sub{font-size:11px;opacity:.8}
+        #chat-close{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:4px}
+        #chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+        #chat-msgs::-webkit-scrollbar{width:4px}
+        #chat-msgs::-webkit-scrollbar-thumb{background:#2a1b3d;border-radius:4px}
+        .msg-bot,.msg-user{max-width:85%;padding:10px 14px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word}
+        .msg-bot{background:#1e1030;border:1px solid #2a1b3d;align-self:flex-start;border-bottom-left-radius:4px}
+        .msg-user{background:linear-gradient(135deg,#d62bc5,#7b2cbf);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+        #chat-sugestoes{padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;border-top:1px solid #2a1b3d;background:#0d0818}
+        .chat-sug{background:#1e1030;border:1px solid #2a1b3d;color:#b5a8c9;padding:6px 10px;border-radius:10px;font-size:11px;cursor:pointer;transition:.2s;font-family:'Poppins',sans-serif;white-space:nowrap}
+        .chat-sug:hover{border-color:#d62bc5;color:#fff}
+        #chat-input-area{display:flex;gap:8px;padding:10px 12px;flex-shrink:0;border-top:1px solid #2a1b3d}
+        #chat-input{flex:1;background:#050308;border:1px solid #2a1b3d;color:#fff;padding:10px 12px;border-radius:10px;font-family:'Poppins',sans-serif;font-size:13px;outline:none}
+        #chat-input:focus{border-color:#d62bc5}
+        #chat-send{background:linear-gradient(135deg,#d62bc5,#7b2cbf);color:#fff;border:none;width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     </style>
 </head>
 <body>
@@ -1073,6 +1096,206 @@ document.addEventListener('keydown', function(e) {
         <i class="fas fa-info-circle"></i> Clique em um arquivo para visualizar ou baixar
     </div>
 </div>
+
+<!-- Assistente IA / Chatbot -->
+<button id="chat-fab" onclick="toggleChat()" aria-label="Assistente Elite">
+    <i class="fas fa-robot" id="chat-fab-icon"></i>
+</button>
+
+<div id="chat-panel">
+    <div id="chat-header">
+        <i class="fas fa-robot"></i>
+        <div style="flex:1">
+            <div class="chat-nome">Assistente Elite</div>
+            <div class="chat-sub">🟢 Online — Powered by Elite IA</div>
+        </div>
+        <button id="chat-close" onclick="toggleChat()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="chat-msgs"></div>
+    <div id="chat-sugestoes">
+        <button class="chat-sug" onclick="enviarSugestao(this)">🗓️ Horários</button>
+        <button class="chat-sug" onclick="enviarSugestao(this)">💳 Meu plano</button>
+        <button class="chat-sug" onclick="enviarSugestao(this)">⭐ Meu XP</button>
+        <button class="chat-sug" onclick="enviarSugestao(this)">🥊 Dicas de treino</button>
+        <button class="chat-sug" onclick="enviarSugestao(this)">🎁 Brindes</button>
+        <button class="chat-sug" onclick="enviarSugestao(this)">📣 Indicações</button>
+    </div>
+    <div id="chat-input-area">
+        <input id="chat-input" type="text" placeholder="Pergunte algo..." autocomplete="off" onkeydown="if(event.key==='Enter')enviarMensagem()">
+        <button id="chat-send" onclick="enviarMensagem()" aria-label="Enviar"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
+<script>
+(function(){
+    // Dados do aluno passados pelo PHP
+    var dadosAluno = {
+        nome:       <?= json_encode(explode(' ', $aluna['nome'])[0]) ?>,
+        rank:       <?= json_encode($rank) ?>,
+        xp:         <?= (int)($aluna['xp_atual'] ?? 0) ?>,
+        nivel:      <?= $nivel ?>,
+        treinos:    <?= $treinos_totais ?>,
+        falta_fid:  <?= $faltam_fidelidade ?>,
+        plano:      <?= json_encode($plano['nome_plano'] ?? null) ?>,
+        vencimento: <?= json_encode($plano['data_vencimento'] ?? null) ?>,
+        dica:       <?= json_encode($dica_hoje) ?>,
+        proxAula:   <?= json_encode($proxima_aula ? ($proxima_aula['turma']['nome'] . ' — ' . ($proxima_aula['turma']['professores_nomes'] ?? '') . ' — ' . $proxima_aula['datetime']->format('d/m às H:i')) : null) ?>,
+        missao:     <?= json_encode($missao ? ($missao['titulo'] . ': ' . ($missao['descricao'] ?? '')) : null) ?>,
+        indicacoes: <?= $total_indicacoes ?>,
+        matriculados: <?= $matriculados_indicacoes ?>,
+        brindes:    <?= count($brindes_lista) ?>,
+        brinde_roleta: <?= json_encode($brinde_roleta ? true : false) ?>
+    };
+
+    var horarios = <?= json_encode(array_map(function($h){ return $h['dia_semana'] . ' às ' . $h['horario'] . ($h['descricao'] ? ' (' . $h['descricao'] . ')' : ''); }, $grade_horarios)) ?>;
+
+    var chatAberto = false;
+    var msgs = document.getElementById('chat-msgs');
+
+    function adicionarMsg(texto, tipo) {
+        var div = document.createElement('div');
+        div.className = tipo === 'bot' ? 'msg-bot' : 'msg-user';
+        div.innerHTML = texto;
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function saudacao() {
+        var h = new Date().getHours();
+        if (h < 12) return 'Bom dia';
+        if (h < 18) return 'Boa tarde';
+        return 'Boa noite';
+    }
+
+    function mensagemInicial() {
+        adicionarMsg('👋 ' + saudacao() + ', <strong>' + dadosAluno.nome + '</strong>! Sou o <strong>Assistente Elite</strong>. Como posso ajudar você hoje?', 'bot');
+    }
+
+    function responder(texto) {
+        var t = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        var resp = '';
+
+        // Saudações
+        if (/\b(oi|ola|opa|bom dia|boa tarde|boa noite|tudo bem|hey|eae)\b/.test(t)) {
+            resp = saudacao() + ', <strong>' + dadosAluno.nome + '</strong>! 😄 Como posso ajudar?<br><br>Pode me perguntar sobre horários, plano, XP, missão, brindes, dicas de treino e muito mais!';
+        }
+        // Horários / Aula
+        else if (/\b(horario|horarios|aula|aulas|grade|turma|turmas|treino|treinar|quando|dia)\b/.test(t)) {
+            if (dadosAluno.proxAula) {
+                resp = '🗓️ <strong>Próxima aula:</strong><br>' + dadosAluno.proxAula + '<br><br>';
+            } else {
+                resp = '📋 <strong>Grade de Horários:</strong><br>';
+            }
+            if (horarios.length > 0) {
+                resp += '<strong>Todos os horários:</strong><br>' + horarios.map(function(h){ return '• ' + h; }).join('<br>');
+            } else {
+                resp += 'Os horários ainda não foram configurados. Fale com a sua treinadora! 🥊';
+            }
+        }
+        // Plano / Pagamento / Mensalidade
+        else if (/\b(plano|pagamento|mensalidade|pagar|vencimento|vence|renovar|assinar)\b/.test(t)) {
+            if (dadosAluno.plano) {
+                var venc = dadosAluno.vencimento;
+                var partes = venc ? venc.split('-') : null;
+                var vencFmt = partes ? partes[2] + '/' + partes[1] + '/' + partes[0] : '—';
+                resp = '💳 <strong>Seu Plano:</strong> ' + dadosAluno.plano + '<br>📅 <strong>Vencimento:</strong> ' + vencFmt + '<br><br>Para renovar, fale com a recepção ou diretamente com a sua treinadora! 🌟';
+            } else {
+                resp = '💳 Não encontrei um plano ativo para você. Entre em contato com a academia para regularizar. 📲';
+            }
+        }
+        // XP / Rank / Nível / Pontos
+        else if (/\b(xp|rank|nivel|pontos|ranking|badge|titulo|conquista|medalha|nivel)\b/.test(t)) {
+            resp = '⭐ <strong>Seu progresso:</strong><br>🏅 Rank: <strong>' + dadosAluno.rank + '</strong><br>✨ XP: <strong>' + dadosAluno.xp + ' pontos</strong><br>📈 Nível: <strong>' + dadosAluno.nivel + '</strong><br><br>Continue treinando para subir de rank! 💪';
+        }
+        // Fidelidade / Cartão
+        else if (/\b(fidelidade|fidelizacao|cartao|brinde|premio|recompensa|roleta)\b/.test(t)) {
+            if (dadosAluno.brinde_roleta) {
+                resp = '🎉 Você tem um <strong>brinde disponível para girar a roleta</strong>! Acesse a seção de recompensas no seu painel. 🎁';
+            } else {
+                resp = '🃏 <strong>Cartão Fidelização:</strong><br>Treinos feitos: <strong>' + dadosAluno.treinos + '</strong><br>Faltam <strong>' + dadosAluno.falta_fid + ' treinos</strong> para ganhar um prêmio!<br><br>Há <strong>' + dadosAluno.brindes + ' brindes</strong> disponíveis na roleta. 🎁';
+            }
+        }
+        // Missão
+        else if (/\b(missao|missoes|desafio|desafios|meta|metas|semana)\b/.test(t)) {
+            if (dadosAluno.missao) {
+                resp = '🎯 <strong>Missão da Semana:</strong><br>' + dadosAluno.missao + '<br><br>Foque e complete a missão para ganhar XP extra! 🔥';
+            } else {
+                resp = '🎯 Não há nenhuma missão ativa no momento. Fique de olho nas atualizações! 👀';
+            }
+        }
+        // Dicas de treino / Muay Thai
+        else if (/\b(dica|dicas|treino|treinar|tecnica|tecnicas|muay|thai|luta|nocao|soco|chute|cotovelada|joelhada)\b/.test(t)) {
+            resp = '💡 <strong>Dica do Dia:</strong><br>' + dadosAluno.dica + '<br><br>Técnicas básicas do Muay Thai:<br>🥊 <strong>Jab:</strong> Soco reto com a mão da frente<br>👊 <strong>Cross:</strong> Soco potente com a mão de trás<br>🦵 <strong>Roundhouse:</strong> Chute girado com a canela<br>💥 <strong>Teep:</strong> Chute frontal de empurrão<br>⚡ <strong>Cotovelada:</strong> Ataque com cotovelo em curta distância';
+        }
+        // Indicações / Convite / VIP
+        else if (/\b(indicacao|indicacoes|convite|indicar|vip|amigo|amiga|referral)\b/.test(t)) {
+            resp = '📣 <strong>Indicações VIP:</strong><br>Você já indicou <strong>' + dadosAluno.indicacoes + '</strong> amigo(s), sendo <strong>' + dadosAluno.matriculados + '</strong> matriculado(s)!<br><br>Compartilhe seu link de convite (visível no seu painel) e presenteie um amigo com uma <strong>Aula VIP Gratuita</strong>! 🎟️';
+        }
+        // Nutrição / Alimentação / Dieta
+        else if (/\b(nutricao|alimentacao|dieta|comer|proteina|carboidrato|hidrata|agua|suple|suplemento)\b/.test(t)) {
+            resp = '🥗 <strong>Dicas Nutricionais para Muay Thai:</strong><br>🍎 Priorize alimentos naturais e integrais<br>🥩 Proteínas são essenciais (frango, peixe, ovos)<br>🌾 Carboidratos complexos dão energia para o treino<br>💧 Hidrate-se antes, durante e após o treino<br>⏰ Coma 1-2h antes do treino para ter energia<br>🚫 Evite açúcar e ultraprocessados';
+        }
+        // Recuperação / Descanso / Lesão / Dor
+        else if (/\b(recuperacao|descanso|lesao|dor|cansar|cansaco|muscular|dormir|sono)\b/.test(t)) {
+            resp = '🧘 <strong>Recuperação Muscular:</strong><br>😴 Durma 7-9 horas por noite<br>🧊 Aplique gelo em lesões nas primeiras 48h<br>🤸 Alongue-se diariamente<br>💆 Massagem acelera a recuperação<br>⚠️ Dores persistentes? Consulte um médico e avise sua treinadora!';
+        }
+        // Ajuda / Menu
+        else if (/\b(ajuda|menu|opcoes|opcao|what|help|pode|consegue|sabe|faz)\b/.test(t)) {
+            resp = '🤖 <strong>Posso ajudar com:</strong><br>• 🗓️ Horários e próxima aula<br>• 💳 Plano e pagamento<br>• ⭐ XP e ranking<br>• 🃏 Fidelidade e brindes<br>• 🎯 Missão da semana<br>• 💡 Dicas de treino e técnicas<br>• 🥗 Dicas nutricionais<br>• 📣 Indicações VIP<br><br>É só perguntar! 😄';
+        }
+        // Obrigada / Valeu
+        else if (/\b(obrigada|obrigado|valeu|thanks|brigada|muito bom|otimo|excelente|show|top|incrivel)\b/.test(t)) {
+            resp = '😊 Fico feliz em ajudar, <strong>' + dadosAluno.nome + '</strong>! Qualquer dúvida estou aqui. Continue arrasando nos treinos! 🥊💜';
+        }
+        // Padrão
+        else {
+            var fallbacks = [
+                'Hmm, não entendi muito bem. 😅 Tente perguntar sobre: <strong>horários, plano, XP, brindes, dicas de treino ou indicações</strong>!',
+                '🤔 Não tenho certeza sobre isso. Que tal perguntar sobre seus <strong>horários, XP ou plano</strong>? Ou use os botões de sugestão acima! 😄',
+                'Posso ajudar com horários, plano, XP, brindes e dicas de treino. Tenta reformular a pergunta? 💜'
+            ];
+            resp = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        }
+        return resp;
+    }
+
+    function enviarMensagem() {
+        var input = document.getElementById('chat-input');
+        var texto = input.value.trim();
+        if (!texto) return;
+        input.value = '';
+        adicionarMsg(texto, 'user');
+        setTimeout(function(){
+            adicionarMsg(responder(texto), 'bot');
+        }, 300);
+    }
+
+    window.enviarSugestao = function(btn) {
+        var texto = btn.textContent.trim().replace(/^[^\w\s]+\s?/, '');
+        adicionarMsg(btn.textContent.trim(), 'user');
+        setTimeout(function(){
+            adicionarMsg(responder(texto), 'bot');
+        }, 300);
+    };
+
+    window.toggleChat = function() {
+        var panel = document.getElementById('chat-panel');
+        var icon  = document.getElementById('chat-fab-icon');
+        chatAberto = !chatAberto;
+        if (chatAberto) {
+            panel.classList.add('aberto');
+            icon.className = 'fas fa-times';
+            if (msgs.childElementCount === 0) mensagemInicial();
+            setTimeout(function(){ document.getElementById('chat-input').focus(); }, 100);
+        } else {
+            panel.classList.remove('aberto');
+            icon.className = 'fas fa-robot';
+        }
+    };
+
+    window.enviarMensagem = enviarMensagem;
+})();
+</script>
 
 </body>
 </html>
