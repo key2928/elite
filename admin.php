@@ -6,6 +6,47 @@ if (!isset($_SESSION['usuario_tipo']) || $_SESSION['usuario_tipo'] !== 'admin') 
     exit;
 }
 
+function extractDriveFileId(string $url): string {
+    if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $m)) return $m[1];
+    if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $url, $m)) return $m[1];
+    return '';
+}
+
+$PERMISSOES_GRUPOS = [
+    'Galeria de Marketing' => [
+        'galeria_ver'      => 'Visualizar galeria',
+        'galeria_upload'   => 'Fazer upload de materiais',
+        'galeria_download' => 'Fazer download de materiais',
+    ],
+    'Alunos' => [
+        'alunos_ver'    => 'Visualizar lista de alunos',
+        'alunos_editar' => 'Editar dados dos alunos',
+    ],
+    'Pagamentos' => [
+        'pagamentos_ver'       => 'Visualizar pagamentos',
+        'pagamentos_registrar' => 'Registrar pagamentos',
+    ],
+    'Mural & Avisos' => [
+        'mural_ver'    => 'Visualizar mural de avisos',
+        'mural_editar' => 'Publicar e editar avisos',
+    ],
+    'Horários & Turmas' => [
+        'horarios_ver'    => 'Visualizar horários',
+        'horarios_editar' => 'Editar horários e turmas',
+    ],
+    'Brindes' => [
+        'brindes_ver'      => 'Visualizar brindes',
+        'brindes_entregar' => 'Marcar brinde como entregue',
+    ],
+    'Relatórios' => [
+        'relatorios_ver' => 'Visualizar relatórios e caixa',
+    ],
+    'Indicações VIP' => [
+        'indicacoes_ver'    => 'Visualizar indicações',
+        'indicacoes_editar' => 'Editar status de indicações',
+    ],
+];
+
 $msg_sucesso = '';
 $msg_erro = '';
 
@@ -24,6 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$novo_id, (int)$_POST['turma_id']]);
             }
             $msg_sucesso = 'Usuário cadastrado com sucesso!';
+            if (!empty($_POST['permissoes']) && is_array($_POST['permissoes'])) {
+                $tipo_novo = $_POST['tipo'] ?? 'aluno';
+                if (!in_array($tipo_novo, ['admin','aluno'])) {
+                    $stmtPerm = $pdo->prepare("INSERT IGNORE INTO usuario_permissoes (usuario_id, permissao) VALUES (?,?)");
+                    foreach ($_POST['permissoes'] as $perm) {
+                        $perm = trim($perm);
+                        if ($perm !== '') $stmtPerm->execute([$novo_id, $perm]);
+                    }
+                }
+            }
         } catch (PDOException $e) {
             $msg_erro = 'Erro: Este e-mail já está cadastrado.';
         }
@@ -56,6 +107,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ->execute([$nome, $email, $telefone ?: null, $tipo, $data_nasc, $id_edit]);
                 }
                 $msg_sucesso = 'Usuário atualizado com sucesso!';
+                try {
+                    $pdo->prepare("DELETE FROM usuario_permissoes WHERE usuario_id=?")->execute([$id_edit]);
+                    if (!empty($_POST['permissoes']) && is_array($_POST['permissoes']) && !in_array($tipo, ['admin','aluno'])) {
+                        $stmtPerm = $pdo->prepare("INSERT IGNORE INTO usuario_permissoes (usuario_id, permissao) VALUES (?,?)");
+                        foreach ($_POST['permissoes'] as $perm) {
+                            $perm = trim($perm);
+                            if ($perm !== '') $stmtPerm->execute([$id_edit, $perm]);
+                        }
+                    }
+                } catch (Exception $eP) {}
             } catch (PDOException $e) {
                 $msg_erro = 'Erro: Este e-mail/login já está em uso por outro usuário.';
             }
@@ -261,6 +322,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("DELETE FROM pastas_turma WHERE id=?")->execute([(int)($_POST['id'] ?? 0)]);
         $msg_sucesso = 'Pasta removida.';
     }
+
+    // 19. Adicionar Material de Marketing
+    if ($acao === 'add_material') {
+        $titulo    = trim($_POST['titulo'] ?? '');
+        $descricao = trim($_POST['descricao'] ?? '');
+        $categoria = trim($_POST['categoria'] ?? 'Geral');
+        $tipo      = $_POST['tipo_arquivo'] ?? 'outro';
+        $tipos_validos_mat = ['imagem','video','documento','link','outro'];
+        if (!in_array($tipo, $tipos_validos_mat)) $tipo = 'outro';
+
+        $arquivo_path  = null;
+        $drive_link    = null;
+        $drive_file_id = null;
+        $tamanho_kb    = null;
+
+        if ($tipo === 'link') {
+            $drive_link = trim($_POST['drive_link'] ?? '');
+            if ($drive_link !== '') {
+                $drive_file_id = extractDriveFileId($drive_link) ?: null;
+            }
+        } elseif (isset($_FILES['arquivo']) && $_FILES['arquivo']['error'] === UPLOAD_ERR_OK) {
+            $allowed_exts = ['jpg','jpeg','png','gif','webp','mp4','mov','avi','pdf','doc','docx','xls','xlsx','ppt','pptx'];
+            $allowed_mimes = [
+                'image/jpeg','image/png','image/gif','image/webp',
+                'video/mp4','video/quicktime','video/x-msvideo',
+                'application/pdf',
+                'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ];
+            $orig_name = basename($_FILES['arquivo']['name']);
+            $ext       = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
+            $finfo     = class_exists('finfo') ? new finfo(FILEINFO_MIME_TYPE) : null;
+            $mime_type = $finfo ? $finfo->file($_FILES['arquivo']['tmp_name']) : mime_content_type($_FILES['arquivo']['tmp_name']);
+            if (!in_array($ext, $allowed_exts) || !in_array($mime_type, $allowed_mimes)) {
+                $msg_erro = 'Tipo de arquivo não permitido.';
+            } elseif ($_FILES['arquivo']['size'] > 50 * 1024 * 1024) {
+                $msg_erro = 'Arquivo muito grande (máximo 50 MB).';
+            } else {
+                $upload_dir = __DIR__ . '/uploads/materiais/';
+                if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+                $new_name = uniqid() . '.' . $ext;
+                if (move_uploaded_file($_FILES['arquivo']['tmp_name'], $upload_dir . $new_name)) {
+                    $arquivo_path = 'uploads/materiais/' . $new_name;
+                    $tamanho_kb   = (int)ceil($_FILES['arquivo']['size'] / 1024);
+                    if ($tipo === 'outro') {
+                        $img_exts = ['jpg','jpeg','png','gif','webp'];
+                        $vid_exts = ['mp4','mov','avi'];
+                        $doc_exts = ['pdf','doc','docx','xls','xlsx','ppt','pptx'];
+                        if (in_array($ext, $img_exts)) $tipo = 'imagem';
+                        elseif (in_array($ext, $vid_exts)) $tipo = 'video';
+                        elseif (in_array($ext, $doc_exts)) $tipo = 'documento';
+                    }
+                } else {
+                    $msg_erro = 'Erro ao fazer upload do arquivo.';
+                }
+            }
+        }
+
+        if ($msg_erro === '' && $titulo !== '') {
+            try {
+                $pdo->prepare("INSERT INTO materiais_marketing (titulo, descricao, categoria, tipo_arquivo, arquivo_path, drive_link, drive_file_id, tamanho_kb, criado_por) VALUES (?,?,?,?,?,?,?,?,?)")
+                    ->execute([$titulo, $descricao ?: null, $categoria, $tipo, $arquivo_path, $drive_link ?: null, $drive_file_id, $tamanho_kb, $_SESSION['usuario_id']]);
+                $msg_sucesso = 'Material adicionado à galeria!';
+            } catch (PDOException $e) {
+                $msg_erro = 'Erro ao salvar material.';
+            }
+        } elseif ($msg_erro === '') {
+            $msg_erro = 'Informe o título do material.';
+        }
+    }
+
+    // 20. Editar Material de Marketing
+    if ($acao === 'editar_material') {
+        $id_mat    = (int)($_POST['id'] ?? 0);
+        $titulo    = trim($_POST['titulo'] ?? '');
+        $descricao = trim($_POST['descricao'] ?? '');
+        $categoria = trim($_POST['categoria'] ?? 'Geral');
+        if ($id_mat && $titulo !== '') {
+            $pdo->prepare("UPDATE materiais_marketing SET titulo=?, descricao=?, categoria=? WHERE id=?")
+                ->execute([$titulo, $descricao ?: null, $categoria, $id_mat]);
+            $msg_sucesso = 'Material atualizado!';
+        }
+    }
+
+    // 21. Excluir Material de Marketing
+    if ($acao === 'excluir_material') {
+        $id_mat = (int)($_POST['id'] ?? 0);
+        if ($id_mat) {
+            try {
+                $stmtMat = $pdo->prepare("SELECT arquivo_path FROM materiais_marketing WHERE id=?");
+                $stmtMat->execute([$id_mat]);
+                $mat_row = $stmtMat->fetch();
+                if ($mat_row && $mat_row['arquivo_path']) {
+                    $rel_path  = $mat_row['arquivo_path'];
+                    $safe_base = realpath(__DIR__ . '/uploads/materiais');
+                    $file_path = realpath(__DIR__ . '/' . $rel_path);
+                    if ($file_path && $safe_base && str_starts_with($file_path, $safe_base . DIRECTORY_SEPARATOR) && file_exists($file_path)) {
+                        unlink($file_path);
+                    }
+                }
+                $pdo->prepare("DELETE FROM materiais_marketing WHERE id=?")->execute([$id_mat]);
+                $msg_sucesso = 'Material removido.';
+            } catch (Exception $e) {
+                $msg_erro = 'Erro ao excluir material.';
+            }
+        }
+    }
 }
 
 // ── Dados ───────────────────────────────────────────────────
@@ -320,6 +489,19 @@ $pastas_turma = [];
 try {
     $pastas_turma = $pdo->query("SELECT pt.*, t.nome as turma_nome FROM pastas_turma pt JOIN turmas t ON pt.turma_id = t.id ORDER BY t.nome")->fetchAll();
 } catch (Exception $e) {}
+
+$materiais_marketing = [];
+try {
+    $materiais_marketing = $pdo->query("SELECT mm.*, u.nome as criado_por_nome FROM materiais_marketing mm JOIN usuarios u ON mm.criado_por = u.id WHERE mm.ativo = 1 ORDER BY mm.created_at DESC")->fetchAll();
+} catch (Exception $e) {}
+
+$usuario_permissoes_map = [];
+try {
+    $rows = $pdo->query("SELECT usuario_id, permissao FROM usuario_permissoes")->fetchAll();
+    foreach ($rows as $r) {
+        $usuario_permissoes_map[(int)$r['usuario_id']][] = $r['permissao'];
+    }
+} catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -378,6 +560,29 @@ try {
         .alerta-saude{background:rgba(214,43,197,.1);border-left:3px solid #d62bc5;padding:10px;border-radius:8px;font-size:12px;color:#fff;margin-top:10px;line-height:1.5}
         .status-novo{color:#f1c40f}.status-contatado{color:#3498db}.status-matriculado{color:#2ecc71}
         .edit-inline{display:none;background:#050308;padding:15px;border-radius:12px;border:1px solid #f1c40f;margin-top:10px}
+        .mat-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+        .mat-fbtn{background:#050308;border:1px solid var(--borda);color:var(--cinza);padding:8px 16px;border-radius:10px;font-family:'Poppins';font-weight:600;cursor:pointer;transition:.3s;font-size:12px}
+        .mat-fbtn.ativo,.mat-fbtn:hover{background:var(--pink);color:#fff;border-color:transparent}
+        .mat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+        .mat-card{background:#050308;border:1px solid var(--borda);border-radius:14px;overflow:hidden;transition:.3s}
+        .mat-card:hover{border-color:#d62bc5;transform:translateY(-2px)}
+        .mat-preview{height:120px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--borda);overflow:hidden}
+        .mat-info{padding:12px}
+        .mat-titulo{font-weight:700;font-size:13px;margin-bottom:6px;line-height:1.3}
+        .mat-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+        .mat-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase}
+        .mat-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+        .mat-btn{width:32px;height:32px;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;text-decoration:none;transition:.3s}
+        .mat-btn-view{background:rgba(52,152,219,.15);color:#3498db}.mat-btn-view:hover{background:#3498db;color:#fff}
+        .mat-btn-dl{background:rgba(46,204,113,.15);color:#2ecc71}.mat-btn-dl:hover{background:#2ecc71;color:#fff}
+        .mat-btn-edit{background:rgba(241,196,15,.15);color:#f1c40f}.mat-btn-edit:hover{background:#f1c40f;color:#000}
+        .mat-btn-del{background:rgba(255,68,68,.1);color:#ff4444}.mat-btn-del:hover{background:#ff4444;color:#fff}
+        .perm-grupo{margin-bottom:14px}
+        .perm-grupo-titulo{font-size:11px;font-weight:800;text-transform:uppercase;color:#d62bc5;margin-bottom:8px;letter-spacing:.5px}
+        .perm-checks{display:flex;flex-wrap:wrap;gap:8px}
+        .perm-check-label{display:flex;align-items:center;gap:6px;background:#050308;border:1px solid var(--borda);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--cinza);transition:.3s}
+        .perm-check-label:hover{border-color:#d62bc5;color:#fff}
+        .perm-check-label input{width:auto;margin:0}
     </style>
 </head>
 <body>
@@ -400,6 +605,7 @@ try {
         <button class="tab-btn" onclick="openTab('planos',this)"><i class="fas fa-tags"></i> Planos</button>
         <button class="tab-btn" onclick="openTab('mural',this)"><i class="fas fa-bullhorn"></i> Mural</button>
         <button class="tab-btn" onclick="openTab('brindes',this)"><i class="fas fa-gift"></i> Brindes</button>
+        <button class="tab-btn" onclick="openTab('galeria',this)"><i class="fas fa-images"></i> Galeria</button>
         <button class="tab-btn" onclick="openTab('pastas',this)"><i class="fab fa-google-drive"></i> Pastas</button>
     </div>
 
@@ -561,6 +767,21 @@ try {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <div id="permsCreateDiv" style="display:none;border:1px solid var(--borda);border-radius:12px;padding:14px;margin-bottom:12px">
+                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:12px"><i class="fas fa-key"></i> Permissões de Acesso</label>
+                    <?php foreach ($PERMISSOES_GRUPOS as $grupo => $perms): ?>
+                    <div class="perm-grupo">
+                        <div class="perm-grupo-titulo"><?= e($grupo) ?></div>
+                        <div class="perm-checks">
+                            <?php foreach ($perms as $perm_key => $perm_label): ?>
+                            <label class="perm-check-label">
+                                <input type="checkbox" name="permissoes[]" value="<?= e($perm_key) ?>"> <?= e($perm_label) ?>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
                 <button type="submit" class="btn-submit"><i class="fas fa-user-plus"></i> Criar Usuário</button>
             </form>
         </div>
@@ -603,13 +824,32 @@ try {
                                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-calendar-alt"></i> Data de Nascimento</label>
                                 <input type="date" name="data_nascimento" value="<?= e($u['data_nascimento'] ?? '') ?>">
                                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-shield-alt"></i> Nível de Permissão</label>
-                                <select name="tipo" required>
+                                <select name="tipo" required onchange="togglePermsEdit(this,<?= (int)$u['id'] ?>)">
                                     <option value="aluno"      <?= $u['tipo'] === 'aluno'      ? 'selected' : '' ?>>Aluno(a)</option>
                                     <option value="professor"  <?= $u['tipo'] === 'professor'  ? 'selected' : '' ?>>Professor(a)</option>
                                     <option value="treinador"  <?= $u['tipo'] === 'treinador'  ? 'selected' : '' ?>>Treinador(a)</option>
                                     <option value="instrutor"  <?= $u['tipo'] === 'instrutor'  ? 'selected' : '' ?>>Instrutor(a)</option>
                                     <option value="admin"      <?= $u['tipo'] === 'admin'      ? 'selected' : '' ?>>Administrador(a)</option>
                                 </select>
+                                <?php
+                                $u_perms_atual  = $usuario_permissoes_map[(int)$u['id']] ?? [];
+                                $show_edit_perms = !in_array($u['tipo'], ['admin','aluno']) ? 'block' : 'none';
+                                ?>
+                                <div id="permsEditDiv<?= (int)$u['id'] ?>" style="display:<?= $show_edit_perms ?>;border:1px solid var(--borda);border-radius:12px;padding:14px;margin-bottom:12px">
+                                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:12px"><i class="fas fa-key"></i> Permissões de Acesso</label>
+                                    <?php foreach ($PERMISSOES_GRUPOS as $grupo => $perms): ?>
+                                    <div class="perm-grupo">
+                                        <div class="perm-grupo-titulo"><?= e($grupo) ?></div>
+                                        <div class="perm-checks">
+                                            <?php foreach ($perms as $perm_key => $perm_label): ?>
+                                            <label class="perm-check-label">
+                                                <input type="checkbox" name="permissoes[]" value="<?= e($perm_key) ?>" <?= in_array($perm_key, $u_perms_atual) ? 'checked' : '' ?>> <?= e($perm_label) ?>
+                                            </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
                                 <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-lock"></i> Nova Senha <span style="color:#888">(deixe em branco para não alterar)</span></label>
                                 <input type="password" name="nova_senha" placeholder="Nova senha (opcional)">
                                 <div style="display:flex;gap:10px">
@@ -1045,6 +1285,147 @@ try {
         <?php endif; ?>
     </div>
 
+    <!-- GALERIA DE MARKETING -->
+    <div id="galeria" class="tab-content">
+        <div class="card" style="border-color:#d62bc5">
+            <h3 class="card-titulo"><i class="fas fa-cloud-upload-alt"></i> Adicionar Material</h3>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="acao" value="add_material">
+                <input type="text" name="titulo" placeholder="Título do material" required>
+                <textarea name="descricao" rows="2" placeholder="Descrição (opcional)"></textarea>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-folder"></i> Categoria</label>
+                <select name="categoria">
+                    <option value="Geral">Geral</option>
+                    <option value="Treino">Treino</option>
+                    <option value="Nutrição">Nutrição</option>
+                    <option value="Evento">Evento</option>
+                    <option value="Institucional">Institucional</option>
+                    <option value="Promocional">Promocional</option>
+                </select>
+                <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-file"></i> Tipo de Material</label>
+                <select name="tipo_arquivo" id="matTipoSelect" onchange="toggleMatUpload()">
+                    <option value="imagem">🖼️ Imagem</option>
+                    <option value="video">🎥 Vídeo</option>
+                    <option value="documento">📄 Documento</option>
+                    <option value="link">🔗 Link Google Drive</option>
+                    <option value="outro">📁 Outro</option>
+                </select>
+                <div id="matFileDiv">
+                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fas fa-upload"></i> Arquivo (máx. 50 MB)</label>
+                    <input type="file" name="arquivo" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="padding:10px">
+                </div>
+                <div id="matLinkDiv" style="display:none">
+                    <label style="font-size:12px;color:var(--cinza);display:block;margin-bottom:4px"><i class="fab fa-google-drive"></i> Link do Google Drive</label>
+                    <input type="url" name="drive_link" placeholder="https://drive.google.com/file/d/...">
+                </div>
+                <button type="submit" class="btn-submit" style="margin-top:4px"><i class="fas fa-plus"></i> Adicionar à Galeria</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 class="card-titulo"><i class="fas fa-images"></i> Materiais (<?= count($materiais_marketing) ?>)</h3>
+            <div class="mat-filtros">
+                <button class="mat-fbtn ativo" onclick="filterMateriais('todos',this)">Todos</button>
+                <button class="mat-fbtn" onclick="filterMateriais('imagem',this)">🖼️ Imagem</button>
+                <button class="mat-fbtn" onclick="filterMateriais('video',this)">🎥 Vídeo</button>
+                <button class="mat-fbtn" onclick="filterMateriais('documento',this)">📄 Documento</button>
+                <button class="mat-fbtn" onclick="filterMateriais('link',this)">🔗 Link Drive</button>
+                <button class="mat-fbtn" onclick="filterMateriais('outro',this)">📁 Outro</button>
+            </div>
+            <?php if (empty($materiais_marketing)): ?>
+                <p style="color:var(--cinza);font-size:13px;text-align:center;padding:40px 0"><i class="fas fa-images" style="font-size:40px;display:block;margin-bottom:10px;opacity:.3"></i>Nenhum material na galeria ainda.</p>
+            <?php else: ?>
+            <div class="mat-grid">
+                <?php foreach ($materiais_marketing as $mat):
+                    $mat_tipo = $mat['tipo_arquivo'];
+                    $mat_icons  = ['imagem'=>'fa-image','video'=>'fa-film','documento'=>'fa-file-alt','link'=>'fa-link','outro'=>'fa-file'];
+                    $mat_colors = ['imagem'=>'#d62bc5','video'=>'#3498db','documento'=>'#f39c12','link'=>'#4285F4','outro'=>'#7b2cbf'];
+                    $mat_icon  = $mat_icons[$mat_tipo]  ?? 'fa-file';
+                    $mat_color = $mat_colors[$mat_tipo] ?? '#d62bc5';
+                    $is_local_img = ($mat_tipo === 'imagem' && !empty($mat['arquivo_path']));
+                    if (!empty($mat['tamanho_kb'])) {
+                        $tamanho_fmt = $mat['tamanho_kb'] >= 1024 ? round($mat['tamanho_kb'] / 1024, 1) . ' MB' : $mat['tamanho_kb'] . ' KB';
+                    } else {
+                        $tamanho_fmt = '—';
+                    }
+                    if (!empty($mat['arquivo_path'])) {
+                        $view_url = e($mat['arquivo_path']);
+                        $dl_url   = e($mat['arquivo_path']);
+                        $dl_attr  = 'download';
+                    } elseif (!empty($mat['drive_file_id'])) {
+                        $view_url = 'https://drive.google.com/file/d/' . e($mat['drive_file_id']) . '/view';
+                        $dl_url   = 'https://drive.google.com/uc?export=download&id=' . e($mat['drive_file_id']);
+                        $dl_attr  = 'target="_blank"';
+                    } elseif (!empty($mat['drive_link'])) {
+                        $view_url = e($mat['drive_link']);
+                        $dl_url   = e($mat['drive_link']);
+                        $dl_attr  = 'target="_blank"';
+                    } else {
+                        $view_url = '';
+                        $dl_url   = '';
+                        $dl_attr  = '';
+                    }
+                ?>
+                <div class="mat-card" data-cat="<?= e($mat_tipo) ?>">
+                    <div class="mat-preview" style="background:<?= $mat_color ?>20;border-color:<?= $mat_color ?>40">
+                        <?php if ($is_local_img): ?>
+                            <img src="<?= e($mat['arquivo_path']) ?>" alt="<?= e($mat['titulo']) ?>" style="width:100%;height:100%;object-fit:cover">
+                        <?php else: ?>
+                            <i class="fas <?= $mat_icon ?>" style="font-size:36px;color:<?= $mat_color ?>"></i>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mat-info">
+                        <div class="mat-titulo"><?= e($mat['titulo']) ?></div>
+                        <?php if (!empty($mat['descricao'])): ?>
+                            <div style="font-size:11px;color:var(--cinza);margin-bottom:6px;line-height:1.4"><?= e(mb_strimwidth($mat['descricao'], 0, 80, '...')) ?></div>
+                        <?php endif; ?>
+                        <div class="mat-meta">
+                            <span class="mat-badge" style="background:<?= $mat_color ?>20;color:<?= $mat_color ?>;border:1px solid <?= $mat_color ?>50"><?= e(ucfirst($mat_tipo)) ?></span>
+                            <span style="font-size:10px;color:var(--cinza)"><?= e($mat['categoria']) ?> | <?= $tamanho_fmt ?></span>
+                        </div>
+                        <div style="font-size:10px;color:var(--cinza);margin-bottom:8px">
+                            <i class="fas fa-calendar-alt"></i> <?= date('d/m/Y', strtotime($mat['created_at'])) ?>
+                            | <i class="fas fa-user"></i> <?= e($mat['criado_por_nome']) ?>
+                        </div>
+                        <div class="mat-actions">
+                            <?php if ($view_url !== ''): ?>
+                            <a href="<?= $view_url ?>" target="_blank" class="mat-btn mat-btn-view" title="Visualizar"><i class="fas fa-eye"></i></a>
+                            <?php endif; ?>
+                            <?php if ($dl_url !== ''): ?>
+                            <a href="<?= $dl_url ?>" <?= $dl_attr ?> class="mat-btn mat-btn-dl" title="Download"><i class="fas fa-download"></i></a>
+                            <?php endif; ?>
+                            <button type="button" class="mat-btn mat-btn-edit" onclick="toggleEditMaterial(<?= (int)$mat['id'] ?>)" title="Editar"><i class="fas fa-edit"></i></button>
+                            <form method="POST" style="display:inline" onsubmit="return confirm('Excluir este material?')">
+                                <input type="hidden" name="acao" value="excluir_material">
+                                <input type="hidden" name="id" value="<?= (int)$mat['id'] ?>">
+                                <button type="submit" class="mat-btn mat-btn-del" title="Excluir"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                        <div id="editMaterial<?= (int)$mat['id'] ?>" class="edit-inline" style="display:none;margin-top:8px">
+                            <form method="POST">
+                                <input type="hidden" name="acao" value="editar_material">
+                                <input type="hidden" name="id" value="<?= (int)$mat['id'] ?>">
+                                <input type="text" name="titulo" value="<?= e($mat['titulo']) ?>" placeholder="Título" required>
+                                <textarea name="descricao" rows="2" placeholder="Descrição"><?= e($mat['descricao'] ?? '') ?></textarea>
+                                <select name="categoria">
+                                    <?php foreach (['Geral','Treino','Nutrição','Evento','Institucional','Promocional'] as $cat): ?>
+                                        <option value="<?= e($cat) ?>" <?= $mat['categoria'] === $cat ? 'selected' : '' ?>><?= e($cat) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div style="display:flex;gap:10px">
+                                    <button type="submit" class="btn-submit" style="background:#f1c40f;color:#000;box-shadow:none"><i class="fas fa-save"></i> Salvar</button>
+                                    <button type="button" onclick="toggleEditMaterial(<?= (int)$mat['id'] ?>)" class="btn-submit" style="background:#333;box-shadow:none">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -1076,6 +1457,26 @@ function toggleEditPasta(id) { toggleEdit('editPasta', id); }
 function toggleTurmaField() {
     var tipo = document.getElementById('tipoSelect').value;
     document.getElementById('turmaField').style.display = tipo === 'aluno' ? 'block' : 'none';
+    var pd = document.getElementById('permsCreateDiv');
+    if (pd) pd.style.display = (tipo === 'aluno' || tipo === 'admin') ? 'none' : 'block';
+}
+function togglePermsEdit(sel, uid) {
+    var t = sel.value;
+    var el = document.getElementById('permsEditDiv' + uid);
+    if (el) el.style.display = (t === 'aluno' || t === 'admin') ? 'none' : 'block';
+}
+function toggleMatUpload() {
+    var t = document.getElementById('matTipoSelect').value;
+    document.getElementById('matFileDiv').style.display = t === 'link' ? 'none' : 'block';
+    document.getElementById('matLinkDiv').style.display = t === 'link' ? 'block' : 'none';
+}
+function toggleEditMaterial(id) { toggleEdit('editMaterial', id); }
+function filterMateriais(cat, btn) {
+    document.querySelectorAll('.mat-fbtn').forEach(function(b){ b.classList.remove('ativo'); });
+    btn.classList.add('ativo');
+    document.querySelectorAll('.mat-card').forEach(function(c){
+        c.style.display = (cat === 'todos' || c.dataset.cat === cat) ? '' : 'none';
+    });
 }
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(function(){});
