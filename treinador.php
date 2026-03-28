@@ -19,7 +19,8 @@ if (isset($_GET['get_alunos_turma'])) {
     echo json_encode(array_map('intval', $rows));
     exit;
 }
-
+
+
 function calcularDiasTreinados(string $mes, string $dia_semana): array {
     $map = [
         'segunda' => 1, 'monday' => 1,
@@ -586,6 +587,53 @@ if (hasPerm($minha_permissoes, 'galeria_ver')) {
                 🚀 Publicar
             </button>
         </form>
+
+        <?php if (!empty($missoes_prof)): ?>
+        <div style="margin-top:20px">
+            <div style="font-size:12px;color:#FF8C00;text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--borda)"><i class="fas fa-history"></i> Histórico de Missões</div>
+            <?php foreach ($missoes_prof as $m): ?>
+            <div style="background:rgba(255,255,255,.02);border:1px solid <?= $m['status']==='ativa' ? '#FF8C00' : 'var(--borda)' ?>;padding:12px;border-radius:12px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:700;font-size:13px"><?= e($m['titulo']) ?></div>
+                        <?php if (!empty($m['descricao'])): ?>
+                        <div style="font-size:11px;color:var(--cinza);margin-top:3px"><?= e($m['descricao']) ?></div>
+                        <?php endif; ?>
+                        <div style="font-size:11px;color:var(--cinza);margin-top:4px">
+                            <i class="fas fa-calendar-alt" style="color:#7b2cbf;margin-right:4px"></i><?= date('d/m/Y H:i', strtotime($m['created_at'])) ?>
+                            &nbsp;·&nbsp;
+                            <?php if ($m['status']==='ativa'): ?>
+                                <span style="background:rgba(255,140,0,.15);color:#FF8C00;border:1px solid #FF8C00;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:800">✅ Ativa</span>
+                            <?php else: ?>
+                                <span style="background:rgba(100,100,100,.15);color:#888;border:1px solid #555;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:800">Inativa</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:5px;flex-shrink:0">
+                        <button onclick="toggleDiv('edit-missao-<?= (int)$m['id'] ?>')" class="btn-acao" title="Editar" aria-label="Editar missão" style="color:#f1c40f"><i class="fas fa-edit"></i></button>
+                        <form method="POST" style="display:inline" onsubmit="return confirm('Excluir esta missão?')">
+                            <input type="hidden" name="acao" value="excluir_missao">
+                            <input type="hidden" name="missao_id" value="<?= (int)$m['id'] ?>">
+                            <button type="submit" class="btn-acao btn-excluir" title="Excluir"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
+                </div>
+                <div id="edit-missao-<?= (int)$m['id'] ?>" class="section-toggle" style="margin-top:10px">
+                    <form method="POST">
+                        <input type="hidden" name="acao" value="editar_missao">
+                        <input type="hidden" name="missao_id" value="<?= (int)$m['id'] ?>">
+                        <input type="text" name="titulo" value="<?= e($m['titulo']) ?>" placeholder="Título" required style="margin-bottom:8px">
+                        <textarea name="descricao" rows="2" placeholder="Descrição"><?= e($m['descricao'] ?? '') ?></textarea>
+                        <div style="display:flex;gap:8px">
+                            <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;box-shadow:none;font-size:13px;padding:10px"><i class="fas fa-save"></i> Salvar</button>
+                            <button type="button" onclick="toggleDiv('edit-missao-<?= (int)$m['id'] ?>')" class="btn-submit" style="background:#333;box-shadow:none;font-size:13px;padding:10px">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Gestão de Alunos -->
@@ -697,20 +745,62 @@ if (hasPerm($minha_permissoes, 'galeria_ver')) {
                         <div class="section-title"><i class="fas fa-history"></i> Histórico de Renovações</div>
                         <?php if (!empty($historico_pagamentos[(int)$a['id']])): ?>
                             <?php foreach ($historico_pagamentos[(int)$a['id']] as $hp): ?>
-                                <div class="hist-item">
-                                    <div>
-                                        <div style="color:#fff;font-weight:700"><?= e($hp['nome_plano']) ?></div>
-                                        <div><i class="fas fa-calendar-alt" style="color:#d62bc5;margin-right:4px"></i> <?= date('d/m/Y', strtotime($hp['data_pagamento'])) ?> → Vence: <?= date('d/m/Y', strtotime($hp['data_vencimento'])) ?></div>
-                                        <div style="margin-top:4px">
-                                            <span class="hist-badge"><?= e($forma_labels[$hp['forma_pagamento'] ?? 'pix']) ?></span>
+                                <div class="hist-item" style="flex-direction:column;align-items:stretch;gap:6px">
+                                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                                        <div style="flex:1;min-width:0">
+                                            <div style="color:#fff;font-weight:700"><?= e($hp['nome_plano']) ?></div>
+                                            <div><i class="fas fa-calendar-alt" style="color:#d62bc5;margin-right:4px"></i> <?= date('d/m/Y', strtotime($hp['data_pagamento'])) ?> → Vence: <?= date('d/m/Y', strtotime($hp['data_vencimento'])) ?></div>
+                                            <div style="margin-top:4px">
+                                                <span class="hist-badge"><?= e($forma_labels[$hp['forma_pagamento'] ?? 'pix']) ?></span>
+                                            </div>
+                                            <?php if (!empty($hp['observacao_aluna'])): ?>
+                                                <div style="color:#888;margin-top:3px;font-style:italic"><?= e($hp['observacao_aluna']) ?></div>
+                                            <?php endif; ?>
                                         </div>
-                                        <?php if (!empty($hp['observacao_aluna'])): ?>
-                                            <div style="color:#888;margin-top:3px;font-style:italic"><?= e($hp['observacao_aluna']) ?></div>
-                                        <?php endif; ?>
+                                        <div style="text-align:right;white-space:nowrap;margin-left:10px">
+                                            <span style="color:#2ecc71;font-weight:800;font-size:14px">R$ <?= number_format($hp['valor_pago'], 2, ',', '.') ?></span>
+                                            <?php if ((int)($hp['treinador_id'] ?? 0) === $prof_id): ?>
+                                            <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:6px">
+                                                <button onclick="toggleDiv('edit-pag-<?= (int)$hp['id'] ?>')" class="btn-acao" title="Editar" aria-label="Editar pagamento" style="color:#f1c40f;padding:5px 8px"><i class="fas fa-edit"></i></button>
+                                                <form method="POST" style="display:inline" onsubmit="return confirm('Excluir este pagamento?')">
+                                                    <input type="hidden" name="acao" value="excluir_pagamento">
+                                                    <input type="hidden" name="pagamento_id" value="<?= (int)$hp['id'] ?>">
+                                                    <button type="submit" class="btn-acao btn-excluir" title="Excluir" style="padding:5px 8px"><i class="fas fa-trash"></i></button>
+                                                </form>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                    <div style="text-align:right;white-space:nowrap">
-                                        <span style="color:#2ecc71;font-weight:800;font-size:14px">R$ <?= number_format($hp['valor_pago'], 2, ',', '.') ?></span>
+                                    <?php if ((int)($hp['treinador_id'] ?? 0) === $prof_id): ?>
+                                    <div id="edit-pag-<?= (int)$hp['id'] ?>" class="section-toggle" style="margin-top:4px;padding:10px">
+                                        <form method="POST">
+                                            <input type="hidden" name="acao" value="editar_pagamento">
+                                            <input type="hidden" name="pagamento_id" value="<?= (int)$hp['id'] ?>">
+                                            <div class="row-2">
+                                                <div>
+                                                    <span class="ficha-label">Data</span>
+                                                    <input type="date" name="data_pagamento" value="<?= e($hp['data_pagamento']) ?>" style="margin-bottom:8px">
+                                                </div>
+                                                <div>
+                                                    <span class="ficha-label">Valor (R$)</span>
+                                                    <input type="number" step="0.01" min="0" name="valor_pago" value="<?= e($hp['valor_pago']) ?>" style="margin-bottom:8px" required>
+                                                </div>
+                                            </div>
+                                            <span class="ficha-label">Forma de Pagamento</span>
+                                            <select name="forma_pagamento" style="margin-bottom:8px">
+                                                <?php foreach (['pix'=>'PIX','credito'=>'Cartão de Crédito','debito'=>'Cartão de Débito','dinheiro'=>'Dinheiro'] as $fk=>$fl): ?>
+                                                    <option value="<?= $fk ?>" <?= ($hp['forma_pagamento']??'pix')===$fk?'selected':'' ?>><?= $fl ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <span class="ficha-label">Observação</span>
+                                            <textarea name="observacao_aluna" rows="2" placeholder="Observação (opcional)"><?= e($hp['observacao_aluna'] ?? '') ?></textarea>
+                                            <div style="display:flex;gap:8px">
+                                                <button type="submit" class="btn-submit" style="background:linear-gradient(90deg,#f1c40f,#e67e22);color:#000;box-shadow:none;font-size:12px;padding:10px"><i class="fas fa-save"></i> Salvar</button>
+                                                <button type="button" onclick="toggleDiv('edit-pag-<?= (int)$hp['id'] ?>')" class="btn-submit" style="background:#333;box-shadow:none;font-size:12px;padding:10px">Cancelar</button>
+                                            </div>
+                                        </form>
                                     </div>
+                                    <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -839,6 +929,25 @@ if (hasPerm($minha_permissoes, 'galeria_ver')) {
             </div>
             <button type="submit" class="btn-submit"><i class="fas fa-star"></i> Enviar Medalha (+50 XP)</button>
         </form>
+
+        <?php if (!empty($conquistas_prof)): ?>
+        <div style="margin-top:20px">
+            <div style="font-size:12px;color:var(--cinza);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--borda)"><i class="fas fa-list-ul"></i> Medalhas Lançadas</div>
+            <?php foreach ($conquistas_prof as $cq): ?>
+            <div style="background:rgba(255,255,255,.02);border:1px solid var(--borda);padding:10px 12px;border-radius:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:700"><?= e($cq['icone_emoji'] ?? '') ?> <?= e($cq['nome_medalha']) ?> <span style="font-size:11px;color:#f1c40f">+<?= (int)$cq['xp_ganho'] ?> XP</span></div>
+                    <div style="font-size:11px;color:var(--cinza);margin-top:2px"><i class="fas fa-user" style="color:#d62bc5;margin-right:3px"></i><?= e($cq['aluna_nome']) ?> &nbsp;·&nbsp; <i class="fas fa-calendar-alt" style="color:#7b2cbf;margin-right:3px"></i><?= date('d/m/Y', strtotime($cq['data_conquista'])) ?></div>
+                </div>
+                <form method="POST" style="display:inline;flex-shrink:0" onsubmit="return confirm('Remover esta medalha e reverter o XP?')">
+                    <input type="hidden" name="acao" value="excluir_conquista">
+                    <input type="hidden" name="conquista_id" value="<?= (int)$cq['id'] ?>">
+                    <button type="submit" class="btn-acao btn-excluir" title="Remover medalha" style="padding:5px 8px"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Pagamento -->
@@ -908,13 +1017,23 @@ if (hasPerm($minha_permissoes, 'galeria_ver')) {
             <div style="background:rgba(255,255,255,.02);border:1px solid <?= $bp['entregue'] ? '#2ecc71' : '#f1c40f' ?>;padding:12px;border-radius:12px;margin-bottom:8px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                     <strong style="font-size:13px"><?= e($bp['aluna_nome']) ?></strong>
-                    <?php if ($bp['entregue']): ?>
-                        <span style="background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">✅ Entregue</span>
-                    <?php elseif (!$bp['roleta_girada']): ?>
-                        <span style="background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">⏳ Aguardando roleta</span>
-                    <?php else: ?>
-                        <span style="background:rgba(214,43,197,.15);color:#d62bc5;border:1px solid #d62bc5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">🎁 Roleta girada</span>
-                    <?php endif; ?>
+                    <div style="display:flex;align-items:center;gap:5px">
+                        <?php if ($bp['entregue']): ?>
+                            <span style="background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">✅ Entregue</span>
+                        <?php elseif (!$bp['roleta_girada']): ?>
+                            <span style="background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">⏳ Aguardando roleta</span>
+                        <?php else: ?>
+                            <span style="background:rgba(214,43,197,.15);color:#d62bc5;border:1px solid #d62bc5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">🎁 Roleta girada</span>
+                        <?php endif; ?>
+                        <?php if ((int)($bp['instrutor_id'] ?? 0) === $prof_id): ?>
+                        <button onclick="toggleDiv('edit-brinde-<?= (int)$bp['id'] ?>')" class="btn-acao" title="Editar" aria-label="Editar brinde" style="color:#f1c40f;padding:5px 8px"><i class="fas fa-edit"></i></button>
+                        <form method="POST" style="display:inline" onsubmit="return confirm('Remover este brinde?')">
+                            <input type="hidden" name="acao" value="excluir_brinde_aluna">
+                            <input type="hidden" name="ba_id" value="<?= (int)$bp['id'] ?>">
+                            <button type="submit" class="btn-acao btn-excluir" title="Excluir" style="padding:5px 8px"><i class="fas fa-trash"></i></button>
+                        </form>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div style="font-size:12px;color:var(--cinza)">
                     <?php $txt = $bp['brinde_nome'] ?? $bp['brinde_manual'] ?? '—'; ?>
